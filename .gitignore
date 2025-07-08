@@ -1,0 +1,15 @@
+# Excel files
+*.xlsm
+
+# Ignore node modules
+node_modules/
+
+# Ignore log files
+*.log
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env

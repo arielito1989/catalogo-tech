@@ -1,0 +1,32 @@
+
+.image-counter {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-size: 0.9em;
+    z-index: 2;
+}
+
+/* --- Modal de Detalles --- */
+#productCarousel .carousel-item img {
+    max-height: 450px; /* Ajusta este valor según sea necesario */
+    width: auto;
+    margin: 0 auto; /* Centra la imagen si es más estrecha que el carrusel */
+    object-fit: contain;
+}
+
+/* Controles del carrusel más visibles */
+#productCarousel .carousel-control-prev,
+#productCarousel .carousel-control-next {
+    background-color: rgba(0, 0, 0, 0.3); /* Fondo semitransparente */
+    width: 8%;
+}
+
+#productCarousel .carousel-control-prev:hover,
+#productCarousel .carousel-control-next:hover {
+    background-color: rgba(0, 0, 0, 0.5); /* Más oscuro al pasar el mouse */
+}

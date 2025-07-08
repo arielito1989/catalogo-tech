@@ -1,0 +1,24 @@
+{
+  "name": "catalogo",
+  "version": "1.0.0",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arielito1989/catalogo-tech.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/arielito1989/catalogo-tech/issues"
+  },
+  "homepage": "https://github.com/arielito1989/catalogo-tech#readme",
+  "description": "",
+  "dependencies": {
+    "dotenv": "^17.1.0",
+    "express": "^5.1.0"
+  }
+}
