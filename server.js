@@ -17,6 +17,11 @@ app.use(express.json({ limit: '50mb' }));
 // Serve static files from the root directory
 app.use(express.static(path.join(__dirname, '')));
 
+// Route for the home page
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 // Initialize SQLite database
 const db = new sqlite3.Database('./catalog.db', (err) => {
     if (err) {
