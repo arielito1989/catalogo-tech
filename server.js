@@ -1,8 +1,10 @@
+require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 const http = require('http');
 const { Server } = require('socket.io');
+const fetch = require('node-fetch');
 
 const app = express();
 const server = http.createServer(app); // Create HTTP server
@@ -38,6 +40,36 @@ const db = new sqlite3.Database('./catalog.db', (err) => {
     }
 });
 
+// Exchange rate endpoint
+app.get('/api/exchange-rate', async (req, res) => {
+    try {
+        const apiKey = process.env.EXGENERATE_API_KEY;
+        if (!apiKey) {
+            console.error("Error: La variable de entorno EXGENERATE_API_KEY no está definida en el archivo .env.");
+            return res.status(500).json({ error: 'Error de configuración interna del servidor.' });
+        }
+        const url = `https://v6.exchangerate-api.com/v6/${apiKey}/pair/USD/ARS`;
+        const apiResponse = await fetch(url);
+
+        const data = await apiResponse.json();
+        console.log('Respuesta completa de la API externa:', data);
+
+        if (data.result === 'error') {
+            console.error(`Error de la API de tipo de cambio: ${data['error-type']}`);
+            return res.status(400).json({ error: `Error de la API de tipo de cambio: ${data['error-type']}` });
+        }
+
+        // Para el endpoint /pair, la tasa viene en `conversion_rate`
+        // Creamos la estructura que el cliente espera.
+        const rates = { ARS: data.conversion_rate };
+
+        res.json({ rates: rates });
+    } catch (error) {
+        console.error('Error inesperado en /api/exchange-rate:', error);
+        res.status(500).json({ error: 'Error interno del servidor al obtener la tasa de cambio.' });
+    }
+});
+
 // Login endpoint
 app.post('/login', (req, res) => {
     console.log('Login attempt:', req.body);
@@ -56,7 +88,6 @@ app.get('/products', (req, res) => {
             res.status(500).json({ error: err.message });
             return;
         }
-        // Parse the Imagenes field from JSON string back to array
         const productsWithParsedImages = rows.map(row => {
             try {
                 return {
@@ -67,7 +98,7 @@ app.get('/products', (req, res) => {
                 console.error('Error parsing Imagenes for product:', row.id, parseError);
                 return {
                     ...row,
-                    Imagenes: [] // Return empty array if parsing fails
+                    Imagenes: []
                 };
             }
         });
@@ -85,7 +116,7 @@ app.post('/products', (req, res) => {
             return;
         }
         res.status(201).json({ message: 'Product added', id: this.lastID });
-        io.emit('productAdded', { id, Producto, CATEGORIA, "Precio PY": PrecioPY, "Precio al CONTADO": PrecioContado, Imagenes }); // Emit event
+        io.emit('productAdded', { id, Producto, CATEGORIA, "Precio PY": PrecioPY, "Precio al CONTADO": PrecioContado, Imagenes });
     });
     stmt.finalize();
 });
@@ -108,7 +139,7 @@ app.put('/products/:id', (req, res) => {
                 return;
             }
             res.json({ message: 'Product updated', changes: this.changes });
-            io.emit('productUpdated', { id, Producto, CATEGORIA, "Precio PY": PrecioPY, "Precio al CONTADO": PrecioContado, Imagenes }); // Emit event
+            io.emit('productUpdated', { id, Producto, CATEGORIA, "Precio PY": PrecioPY, "Precio al CONTADO": PrecioContado, Imagenes });
         }
     );
 });
@@ -122,10 +153,17 @@ app.delete('/products/:id', (req, res) => {
             return;
         }
         res.json({ message: 'Product deleted', changes: this.changes });
-        io.emit('productDeleted', id); // Emit event
+        io.emit('productDeleted', id);
     });
 });
 
 server.listen(port, () => {
     console.log(`Server listening at http://localhost:${port}`);
+});
+
+io.on('connection', (socket) => {
+    console.log('a user connected');
+    socket.on('disconnect', () => {
+        console.log('user disconnected');
+    });
 });

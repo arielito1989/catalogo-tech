@@ -37,10 +37,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- API Fetching ---
     async function fetchExchangeRate() {
         try {
-            const response = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+            const response = await fetch('/api/exchange-rate'); // Changed to local endpoint
+            if (!response.ok) {
+                // The server already logged the detailed error, so we just show a user-friendly message.
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
             const data = await response.json();
-            usdToArsRate = data.rates.ARS;
-            exchangeRateDisplay.innerHTML = `<strong>Tasa de cambio actual:</strong> 1 USD = ${usdToArsRate.toFixed(2)} ARS`;
+            if (data.rates && data.rates.ARS) {
+                usdToArsRate = data.rates.ARS;
+                exchangeRateDisplay.innerHTML = `<strong>Tasa de cambio actual:</strong> 1 USD = ${usdToArsRate.toFixed(2)} ARS`;
+            } else {
+                throw new Error('Invalid data structure from server');
+            }
         } catch (error) {
             console.error('Error fetching exchange rate:', error);
             exchangeRateDisplay.innerHTML = 'No se pudo cargar la tasa de cambio.';
