@@ -1,4 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
+    const socket = io(); // Initialize Socket.IO client
+
     const loginContainer = document.getElementById('login-container');
     const mainContent = document.getElementById('main-content');
     const loginForm = document.getElementById('login-form');
@@ -93,10 +95,32 @@ document.addEventListener('DOMContentLoaded', () => {
         loadProducts();
     }
 
+    // --- Socket.IO Event Listeners ---
+    socket.on('productAdded', (product) => {
+        console.log('Product added via Socket.IO:', product);
+        loadProducts(); // Reload all products
+    });
+
+    socket.on('productUpdated', (product) => {
+        console.log('Product updated via Socket.IO:', product);
+        loadProducts(); // Reload all products
+    });
+
+    socket.on('productDeleted', (productId) => {
+        console.log('Product deleted via Socket.IO:', productId);
+        loadProducts(); // Reload all products
+    });
+
     // --- DATA HANDLING --- //
-    function loadProducts() {
-        products = JSON.parse(localStorage.getItem('products')) || [];
-        applyFiltersAndSort(); // Initial render with filters and sort
+    async function loadProducts() {
+        try {
+            const response = await fetch('/products');
+            products = await response.json();
+            applyFiltersAndSort(); // Initial render with filters and sort
+        } catch (error) {
+            console.error('Error loading products:', error);
+            // Optionally, display an error message to the user
+        }
     }
 
     let filteredAndSortedProducts = [];
@@ -260,29 +284,40 @@ document.addEventListener('DOMContentLoaded', () => {
             'Precio al CONTADO': document.getElementById('productPriceContado').value,
         };
 
-        const saveProduct = (imagesArray) => {
-            if (currentlyEditingId) {
-                const productIndex = products.findIndex(p => p.id === currentlyEditingId);
-                if (productIndex > -1) {
-                    const existingProduct = products[productIndex];
-                    products[productIndex] = {
-                        ...existingProduct,
-                        ...productData,
-                        Imagenes: imagesArray.length > 0 ? imagesArray : existingProduct.Imagenes,
-                    };
-                }
-            } else {
-                const newProduct = {
-                    id: `local-${new Date().getTime()}`,
-                    ...productData,
-                    Imagenes: imagesArray,
-                };
-                products.push(newProduct);
+        const saveProduct = async (imagesArray) => {
+            const method = currentlyEditingId ? 'PUT' : 'POST';
+            const url = currentlyEditingId ? `/products/${currentlyEditingId}` : '/products';
+
+            const productDataToSend = {
+                ...productData,
+                Imagenes: imagesArray,
+            };
+
+            if (!currentlyEditingId) {
+                productDataToSend.id = `prod-${new Date().getTime()}`;
             }
 
-            localStorage.setItem('products', JSON.stringify(products));
-            applyFiltersAndSort();
-            addProductModal.hide();
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(productDataToSend)
+                });
+
+                if (response.ok) {
+                    loadProducts(); // Reload products from server
+                    addProductModal.hide();
+                } else {
+                    const errorData = await response.json();
+                    console.error('Error saving product:', errorData.error);
+                    alert('Error al guardar el producto: ' + errorData.error);
+                }
+            } catch (error) {
+                console.error('Network error saving product:', error);
+                alert('Error de red al guardar el producto.');
+            }
         };
 
         if (files && files.length > 0) {
@@ -346,11 +381,24 @@ document.addEventListener('DOMContentLoaded', () => {
         addProductModal.show();
     }
 
-    function handleDelete(productId) {
+    async function handleDelete(productId) {
         if (confirm('¿Estás seguro de que quieres eliminar este producto?')) {
-            products = products.filter(p => p.id !== productId);
-            localStorage.setItem('products', JSON.stringify(products));
-            applyFiltersAndSort(); // Re-render after deletion
+            try {
+                const response = await fetch(`/products/${productId}`, {
+                    method: 'DELETE',
+                });
+
+                if (response.ok) {
+                    loadProducts(); // Reload products from server
+                } else {
+                    const errorData = await response.json();
+                    console.error('Error deleting product:', errorData.error);
+                    alert('Error al eliminar el producto: ' + errorData.error);
+                }
+            } catch (error) {
+                console.error('Network error deleting product:', error);
+                alert('Error de red al eliminar el producto.');
+            }
         }
     }
 
@@ -521,7 +569,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const clockContainer = document.getElementById('clock-container');
         if (clockContainer) {
             const now = new Date();
-            const options = { timeZone: 'America/Argentina/Buenos_Aires', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+            const options = { hour: '2-digit', minute: '2-digit', second: '2-digit' };
             const timeString = now.toLocaleTimeString('es-AR', options);
             clockContainer.textContent = timeString;
         }

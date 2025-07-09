@@ -1,0 +1,5 @@
+refactor: Remove dotenv dependency for Render deployment
+
+This removes the dotenv library, which is not needed for production
+deployments on platforms like Render where environment variables are
+injected directly into the environment.
