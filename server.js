@@ -74,7 +74,16 @@ app.get('/api/exchange-rate', async (req, res) => {
 app.post('/login', (req, res) => {
     console.log('Login attempt:', req.body);
     const { username, password } = req.body;
-    if (username === 'admin' && password === 'catalogo2025') {
+
+    const adminUsername = process.env.ADMIN_USERNAME;
+    const adminPassword = process.env.ADMIN_PASSWORD;
+
+    if (!adminUsername || !adminPassword) {
+        console.error('Error: Las credenciales de administrador no están configuradas en las variables de entorno.');
+        return res.status(500).json({ success: false, message: 'Error de configuración interna del servidor.' });
+    }
+
+    if (username === adminUsername && password === adminPassword) {
         res.status(200).json({ success: true });
     } else {
         res.status(401).json({ success: false, message: 'Invalid credentials' });
