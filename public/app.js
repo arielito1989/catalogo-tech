@@ -257,6 +257,58 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- PRICE CALCULATION LOGIC ---
+    const priceContadoInput = document.getElementById('productPriceContado');
+    const priceArsInput = document.getElementById('productPriceArs');
+    const pricePyInput = document.getElementById('productPricePY');
+
+    function updatePrices(source) {
+        const contadoUSD = parseFloat(priceContadoInput.value);
+        const ars = parseFloat(priceArsInput.value);
+        const py = parseFloat(pricePyInput.value);
+
+        if (source === 'contado') {
+            if (!isNaN(contadoUSD)) {
+                priceArsInput.value = (contadoUSD * usdToArsRate).toFixed(2);
+                pricePyInput.value = (contadoUSD / 2).toFixed(2);
+            } else {
+                priceArsInput.value = '';
+                pricePyInput.value = '';
+            }
+        } else if (source === 'ars') {
+            if (!isNaN(ars) && usdToArsRate > 0) {
+                const calculatedUsd = ars / usdToArsRate;
+                priceContadoInput.value = calculatedUsd.toFixed(2);
+                pricePyInput.value = (calculatedUsd / 2).toFixed(2);
+            } else {
+                priceContadoInput.value = '';
+                pricePyInput.value = '';
+            }
+        } else if (source === 'py') {
+            if (!isNaN(py)) {
+                const calculatedUsd = py * 2;
+                priceContadoInput.value = calculatedUsd.toFixed(2);
+                priceArsInput.value = (calculatedUsd * usdToArsRate).toFixed(2);
+            } else {
+                priceContadoInput.value = '';
+                priceArsInput.value = '';
+            }
+        }
+    }
+
+    function attachPriceEventListeners() {
+        priceContadoInput.addEventListener('input', () => updatePrices('contado'));
+        priceArsInput.addEventListener('input', () => updatePrices('ars'));
+        pricePyInput.addEventListener('input', () => updatePrices('py'));
+    }
+
+    function removePriceEventListeners() {
+        priceContadoInput.removeEventListener('input', () => updatePrices('contado'));
+        priceArsInput.removeEventListener('input', () => updatePrices('ars'));
+        pricePyInput.removeEventListener('input', () => updatePrices('py'));
+    }
+
+
     // --- CRUD & EVENT LISTENERS --- //
     searchInput.addEventListener('input', applyFiltersAndSort);
     categoryFilter.addEventListener('change', applyFiltersAndSort);
@@ -278,6 +330,11 @@ document.addEventListener('DOMContentLoaded', () => {
         addProductForm.reset();
         currentlyEditingId = null;
         addProductModalTitle.textContent = 'Agregar Nuevo Producto';
+        removePriceEventListeners(); // Remove listeners when modal is closed
+    });
+
+    addProductModalEl.addEventListener('shown.bs.modal', () => {
+        attachPriceEventListeners(); // Add listeners when modal is shown
     });
 
     
@@ -292,6 +349,7 @@ document.addEventListener('DOMContentLoaded', () => {
             CATEGORIA: document.getElementById('productCategory').value,
             'Precio PY': document.getElementById('productPricePY').value,
             'Precio al CONTADO': document.getElementById('productPriceContado').value,
+            en_venta: true, // Default to true for new products
         };
 
         const saveProduct = async (imagesArray) => {
@@ -590,6 +648,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         manageSaleModalBody.innerHTML = `
+            <div class="mb-3">
+                <label for="sale-start-date" class="form-label">Fecha de Inicio de Pago</label>
+                <input type="date" class="form-control" id="sale-start-date" value="${product.fecha_inicio_pago || new Date().toISOString().split('T')[0]}">
+            </div>
             <div class="mb-3">
                 <label for="sale-plan-select" class="form-label">Plan de Pago Elegido</label>
                 <select class="form-select" id="sale-plan-select">
