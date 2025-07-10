@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const socket = io(); // Initialize Socket.IO client
+    const socket = io({ transports: ['polling'] }); // Force polling for Vercel compatibility
 
     const loginContainer = document.getElementById('login-container');
     const mainContent = document.getElementById('main-content');

@@ -10,10 +10,9 @@ const socketIo = require('socket.io');
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
-    path: '/socket.io',
-    transports: ['websocket', 'polling'], // Allow both transports
-    cors: { // Add CORS configuration
-        origin: "*", // Allow all origins for simplicity, can be restricted
+    transports: ['polling'], // Force polling for Vercel
+    cors: { 
+        origin: "*", 
         methods: ["GET", "POST"]
     }
 });
