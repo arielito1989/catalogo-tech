@@ -4,7 +4,19 @@ const { Pool } = require('pg');
 const fetch = require('node-fetch');
 const path = require('path');
 
+const http = require('http');
+const socketIo = require('socket.io');
+
 const app = express();
+const server = http.createServer(app);
+const io = socketIo(server);
+
+io.on('connection', (socket) => {
+    console.log('a user connected');
+    socket.on('disconnect', () => {
+        console.log('user disconnected');
+    });
+});
 
 // Create a new pool of connections to the database.
 // The pool will read the connection details from the environment variables.
