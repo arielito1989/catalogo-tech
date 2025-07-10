@@ -351,20 +351,6 @@ document.addEventListener('DOMContentLoaded', () => {
             'Precio al CONTADO': document.getElementById('productPriceContado').value,
         };
 
-        const saveProduct = async (imagesArray) => {
-            const method = currentlyEditingId ? 'PUT' : 'POST';
-            const url = currentlyEditingId ? `/products/${currentlyEditingId}` : '/products';
-
-            const productDataToSend = {
-                ...productData,
-                Imagenes: imagesArray,
-            };
-
-            if (!currentlyEditingId) {
-                productDataToSend.id = `prod-${new Date().getTime()}`;
-                productDataToSend.en_venta = true; // Set for new products
-            }
-
             try {
                 const response = await fetch(url, {
                     method: method,

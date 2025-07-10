@@ -135,9 +135,10 @@ app.get('/products', async (req, res) => {
 });
 
 app.post('/products', async (req, res) => {
-    const { id, Producto, CATEGORIA, "Precio PY": PrecioPY, "Precio al CONTADO": PrecioContado, Imagenes, en_venta } = req.body;
-    const query = 'INSERT INTO products (id, Producto, CATEGORIA, "Precio PY", "Precio al CONTADO", Imagenes, en_venta) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *';
-    const values = [id, Producto, CATEGORIA, PrecioPY, PrecioContado, JSON.stringify(Imagenes), en_venta];
+    const { id, Producto, CATEGORIA, "Precio PY": PrecioPY, "Precio al CONTADO": PrecioContado, Imagenes } = req.body;
+    // The 'en_venta' column is omitted, so it will use the DEFAULT TRUE value from the DB schema
+    const query = 'INSERT INTO products (id, Producto, CATEGORIA, "Precio PY", "Precio al CONTADO", Imagenes) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *';
+    const values = [id, Producto, CATEGORIA, PrecioPY, PrecioContado, JSON.stringify(Imagenes)];
 
     try {
         const client = await pool.connect();
