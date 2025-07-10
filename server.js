@@ -123,11 +123,15 @@ app.get('/products', async (req, res) => {
         const result = await client.query('SELECT * FROM products');
         client.release();
         
-        const productsWithParsedImages = result.rows.map(row => ({
-            ...row,
+        const productsWithCorrectKeys = result.rows.map(row => ({
+            id: row.id,
+            Producto: row.producto, // Mapeo de minúsculas a mayúsculas
+            CATEGORIA: row.categoria, // Mapeo de minúsculas a mayúsculas
+            'Precio PY': row['Precio PY'],
+            'Precio al CONTADO': row['Precio al CONTADO'],
             Imagenes: row.imagenes ? JSON.parse(row.imagenes) : []
         }));
-        res.json(productsWithParsedImages);
+        res.json(productsWithCorrectKeys);
     } catch (err) {
         console.error('Error getting products:', err);
         res.status(500).json({ error: 'Error fetching products from database.' });
