@@ -1,8 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     const socket = io({ 
-        transports: ['polling'],
-        path: '/socket.io/'
-    }); // Force polling and set explicit path for Vercel compatibility
+        transports: ['polling']
+    }); // Force polling for Vercel compatibility
 
     const loginContainer = document.getElementById('login-container');
     const mainContent = document.getElementById('main-content');
