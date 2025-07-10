@@ -344,12 +344,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const productImageInput = document.getElementById('productImages');
         const files = productImageInput.files;
 
-        const productData = {
-            Producto: document.getElementById('productName').value,
-            CATEGORIA: document.getElementById('productCategory').value,
-            'Precio PY': document.getElementById('productPricePY').value,
-            'Precio al CONTADO': document.getElementById('productPriceContado').value,
-        };
+        const saveProduct = async (imagesArray) => {
+            const method = currentlyEditingId ? 'PUT' : 'POST';
+            const url = currentlyEditingId ? `/products/${currentlyEditingId}` : '/products';
+
+            const productDataToSend = {
+                ...productData,
+                Imagenes: imagesArray,
+            };
+
+            if (!currentlyEditingId) {
+                productDataToSend.id = `prod-${new Date().getTime()}`;
+            }
 
             try {
                 const response = await fetch(url, {
