@@ -3,31 +3,14 @@ const express = require('express');
 const { Pool } = require('pg');
 const fetch = require('node-fetch');
 const path = require('path');
-
 const http = require('http');
-const socketIo = require('socket.io');
+const { Server } = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server, {
-    transports: ['polling'], // Force polling for Vercel
-    cors: { 
-        origin: "*", 
-        methods: ["GET", "POST"]
-    }
-});
-
-io.on('connection', (socket) => {
-    console.log('a user connected');
-    socket.on('disconnect', () => {
-        console.log('user disconnected');
-    });
-});
 
 // Create a new pool of connections to the database.
-// The pool will read the connection details from the environment variables.
 const isProduction = process.env.NODE_ENV === 'production';
-
 const pool = new Pool({
     connectionString: process.env.POSTGRES_URL,
     ssl: isProduction ? { rejectUnauthorized: false } : false
@@ -55,18 +38,32 @@ const createTable = async () => {
     }
 };
 
-// Call the function to ensure the table exists when the app starts
 createTable();
 
-// Middleware to parse JSON bodies
 app.use(express.json({ limit: '50mb' }));
-
-// Serve static files from the public directory
 app.use(express.static(path.join(process.cwd(), 'public')));
+
+// --- Socket.IO Vercel-compatible setup ---
+const io = new Server(server, {
+    transports: ['polling'],
+    cors: { origin: "*", methods: ["GET", "POST"] }
+});
+
+io.on('connection', (socket) => {
+    console.log('A user connected via polling');
+    socket.on('disconnect', () => {
+        console.log('User disconnected');
+    });
+});
+
+// Middleware to attach io to the request object
+app.use((req, res, next) => {
+    req.io = io;
+    next();
+});
 
 // --- API Endpoints ---
 
-// Exchange rate endpoint
 app.get('/api/exchange-rate', async (req, res) => {
     try {
         const apiKey = process.env.EXGENERATE_API_KEY;
@@ -88,7 +85,6 @@ app.get('/api/exchange-rate', async (req, res) => {
     }
 });
 
-// Login endpoint
 app.post('/login', (req, res) => {
     const { username, password } = req.body;
     const adminUsername = process.env.ADMIN_USERNAME;
@@ -106,7 +102,6 @@ app.post('/login', (req, res) => {
     }
 });
 
-// Get all products
 app.get('/products', async (req, res) => {
     try {
         const client = await pool.connect();
@@ -124,7 +119,6 @@ app.get('/products', async (req, res) => {
     }
 });
 
-// Add a new product
 app.post('/products', async (req, res) => {
     const { id, Producto, CATEGORIA, "Precio PY": PrecioPY, "Precio al CONTADO": PrecioContado, Imagenes } = req.body;
     const query = 'INSERT INTO products (id, Producto, CATEGORIA, "Precio PY", "Precio al CONTADO", Imagenes) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *';
@@ -138,7 +132,7 @@ app.post('/products', async (req, res) => {
             ...result.rows[0],
             Imagenes: result.rows[0].imagenes ? JSON.parse(result.rows[0].imagenes) : []
         };
-        io.emit('productAdded', newProduct);
+        req.io.emit('productAdded', newProduct);
         res.status(201).json({ message: 'Product added', product: newProduct });
     } catch (err) {
         console.error('Error adding product:', err);
@@ -146,7 +140,6 @@ app.post('/products', async (req, res) => {
     }
 });
 
-// Update a product
 app.put('/products/:id', async (req, res) => {
     const { id } = req.params;
     const { Producto, CATEGORIA, "Precio PY": PrecioPY, "Precio al CONTADO": PrecioContado, Imagenes } = req.body;
@@ -172,7 +165,7 @@ app.put('/products/:id', async (req, res) => {
                 ...result.rows[0],
                 Imagenes: result.rows[0].imagenes ? JSON.parse(result.rows[0].imagenes) : []
             };
-            io.emit('productUpdated', updatedProduct);
+            req.io.emit('productUpdated', updatedProduct);
             res.json({ message: 'Product updated', product: updatedProduct });
         } else {
             res.status(404).json({ error: 'Product not found' });
@@ -183,7 +176,6 @@ app.put('/products/:id', async (req, res) => {
     }
 });
 
-// Delete a product
 app.delete('/products/:id', async (req, res) => {
     const { id } = req.params;
     const query = 'DELETE FROM products WHERE id = $1';
@@ -193,7 +185,7 @@ app.delete('/products/:id', async (req, res) => {
         const result = await client.query(query, [id]);
         client.release();
         if (result.rowCount > 0) {
-            io.emit('productDeleted', id);
+            req.io.emit('productDeleted', id);
             res.json({ message: 'Product deleted', changes: result.rowCount });
         } else {
             res.status(404).json({ error: 'Product not found' });
@@ -204,5 +196,7 @@ app.delete('/products/:id', async (req, res) => {
     }
 });
 
-// Export the app for Vercel
+// This is the crucial part for Vercel.
+// We need to export the server, not the app.
+// Vercel will handle the listening part.
 module.exports = server;
