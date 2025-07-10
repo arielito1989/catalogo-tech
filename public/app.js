@@ -696,6 +696,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         planSelect.addEventListener('change', renderInstallmentTracker);
+        startDateInput.addEventListener('change', renderInstallmentTracker); // Add this line
         renderInstallmentTracker(); // Initial render
         manageSaleModal.show();
     }
