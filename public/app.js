@@ -213,7 +213,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
                 catalogTableBody.appendChild(row);
             });
-            });
             renderPaginationControls(totalPages);
         }
     }
@@ -695,4 +694,5 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     setInterval(updateClock, 1000);
-updateClock(); // Initial call
+    updateClock(); // Initial call
+});
