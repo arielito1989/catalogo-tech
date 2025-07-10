@@ -8,12 +8,12 @@ const http = require('http');
 const app = express();
 const server = http.createServer(app);
 
-const pool = process.env.NODE_ENV === 'production' ? new Pool({
+const pool = new Pool({
     connectionString: process.env.POSTGRES_URL,
     ssl: {
         rejectUnauthorized: false
     }
-}) : null;
+});
 
 const initializeDatabase = async () => {
     if (pool) {
@@ -109,7 +109,6 @@ app.post('/login', (req, res) => {
 });
 
 app.get('/products', async (req, res) => {
-    if (!pool) return res.status(503).json({ error: 'Database not available in local development.' });
     try {
         const client = await pool.connect();
         const result = await client.query('SELECT * FROM products ORDER BY producto ASC');
@@ -123,7 +122,6 @@ app.get('/products', async (req, res) => {
 });
 
 app.post('/products', async (req, res) => {
-    if (!pool) return res.status(503).json({ error: 'Database not available in local development.' });
     const { id, Producto, CATEGORIA, "Precio PY": PrecioPY, "Precio al CONTADO": PrecioContado, Imagenes } = req.body;
     // Corrected query to use $7 for the boolean value
     const query = 'INSERT INTO products (id, producto, categoria, "Precio PY", "Precio al CONTADO", imagenes, en_venta) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *';
@@ -142,7 +140,6 @@ app.post('/products', async (req, res) => {
 });
 
 app.put('/products/:id', async (req, res) => {
-    if (!pool) return res.status(503).json({ error: 'Database not available in local development.' });
     const { id } = req.params;
     const { Producto, CATEGORIA, "Precio PY": PrecioPY, "Precio al CONTADO": PrecioContado, Imagenes } = req.body;
     const query = `UPDATE products SET producto = $1, categoria = $2, "Precio PY" = $3, "Precio al CONTADO" = $4, imagenes = $5 WHERE id = $6 RETURNING *`;
@@ -164,7 +161,6 @@ app.put('/products/:id', async (req, res) => {
 });
 
 app.delete('/products/:id', async (req, res) => {
-    if (!pool) return res.status(503).json({ error: 'Database not available in local development.' });
     const { id } = req.params;
     const query = 'DELETE FROM products WHERE id = $1';
     try {
@@ -183,7 +179,6 @@ app.delete('/products/:id', async (req, res) => {
 });
 
 app.put('/products/:id/status', async (req, res) => {
-    if (!pool) return res.status(503).json({ error: 'Database not available in local development.' });
     const { id } = req.params;
     const { en_venta } = req.body;
     if (typeof en_venta !== 'boolean') {
@@ -206,7 +201,6 @@ app.put('/products/:id/status', async (req, res) => {
 });
 
 app.put('/products/:id/sale', async (req, res) => {
-    if (!pool) return res.status(503).json({ error: 'Database not available in local development.' });
     const { id } = req.params;
     const { en_venta, plan_pago_elegido, cuotas_pagadas, fecha_inicio_pago } = req.body;
     const fields = [];
