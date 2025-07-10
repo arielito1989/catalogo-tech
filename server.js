@@ -43,6 +43,9 @@ createTable();
 // Middleware to parse JSON bodies
 app.use(express.json({ limit: '50mb' }));
 
+// Serve static files from the public directory
+app.use(express.static(path.join(__dirname, 'public')));
+
 // --- API Endpoints ---
 
 // Exchange rate endpoint
