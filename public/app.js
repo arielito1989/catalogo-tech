@@ -185,18 +185,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     row.classList.add('product-sold');
                 }
 
-                const actionsHtml = product.en_venta
-                    ? `
-                        <div class="form-check form-switch mb-2">
-                            <input class="form-check-input toggle-en-venta" type="checkbox" role="switch" id="toggle-${product.id}" data-id="${product.id}" checked>
-                            <label class="form-check-label" for="toggle-${product.id}">En Venta</label>
-                        </div>
-                    `
-                    : `
+                let actionsHtml = '';
+                if (product.plan_pago_elegido) { // Si hay un plan de pago, siempre mostrar "Gestionar"
+                    actionsHtml += `
                         <button class="btn btn-sm btn-info manage-sale" data-id="${product.id}" title="Gestionar Venta">
                             <i class="fas fa-dolly"></i> Gestionar
                         </button>
                     `;
+                } else { // Si no hay plan de pago, mostrar el interruptor "En Venta"
+                    actionsHtml += `
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input toggle-en-venta" type="checkbox" role="switch" id="toggle-${product.id}" data-id="${product.id}" ${product.en_venta ? 'checked' : ''}>
+                            <label class="form-check-label" for="toggle-${product.id}">En Venta</label>
+                        </div>
+                    `;
+                }
 
                 row.innerHTML = `
                     <td><img src="${imageUrl}" alt="${product.Producto}" class="img-thumbnail" style="width: 50px; height: 50px; object-fit: cover;"></td>
@@ -677,13 +680,20 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             let trackerHtml = `<h5>Seguimiento de Cuotas (${selectedPlan.months} cuotas)</h5>`;
+            const startDateInput = document.getElementById('sale-start-date');
+            const startDate = new Date(startDateInput.value + 'T00:00:00'); // Ensure date is parsed correctly
+
             for (let i = 1; i <= selectedPlan.months; i++) {
                 const isPaid = i <= (product.cuotas_pagadas || 0);
+                const dueDate = new Date(startDate);
+                dueDate.setMonth(startDate.getMonth() + i -1);
+                const formattedDueDate = dueDate.toLocaleDateString('es-AR');
+
                 trackerHtml += `
                     <div class="form-check">
                         <input class="form-check-input installment-checkbox" type="checkbox" value="${i}" id="inst-${i}" ${isPaid ? 'checked' : ''}>
                         <label class="form-check-label" for="inst-${i}">
-                            Cuota ${i}
+                            Cuota ${i} (Vence: ${formattedDueDate})
                         </label>
                     </div>
                 `;
@@ -704,9 +714,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const cuotas_pagadas = paidInstallmentsCheckboxes.length;
 
         const saleData = {
-            en_venta: false, // When managing, it's always sold
             plan_pago_elegido,
-            cuotas_pagadas
+            cuotas_pagadas,
+            fecha_inicio_pago: document.getElementById('sale-start-date').value // Include start date
         };
 
         try {
