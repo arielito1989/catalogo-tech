@@ -458,8 +458,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const priceContado = parseFloat(product['Precio al CONTADO']);
         if (isNaN(priceContado)) return '<p class="text-danger">El precio del producto no es válido.</p>';
 
-        const plans = [3, 6, 9, 12];
-        const interestRates = { 3: 0.38, 6: 0.48, 9: 0.60, 12: 0.70 }; // Example rates
+        const plans = [
+            { months: 3, interest: 0.50, name: 'Plan 3 Cuotas' },
+            { months: 6, interest: 1.00, name: 'Plan 6 Cuotas' },
+            { months: 9, interest: 1.50, name: 'Plan 9 Cuotas' },
+            { months: 12, interest: 2.00, name: 'Plan Exclusivo' }
+        ];
 
         let tableHtml = `
             <h5>Planes de Financiación</h5>
@@ -467,7 +471,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <table class="table table-bordered table-sm">
                 <thead class="table-light">
                     <tr>
-                        <th>Cuotas</th>
+                        <th>Plan</th>
                         <th>Interés</th>
                         <th>Valor Cuota (USD/ARS)</th>
                         <th>Precio Final (USD/ARS)</th>
@@ -476,16 +480,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 <tbody>`;
 
         for (const plan of plans) {
-            const interestRate = interestRates[plan];
-            const finalPrice = priceContado * (1 + interestRate);
-            const installmentValue = finalPrice / plan;
+            const finalPrice = priceContado * (1 + plan.interest);
+            const installmentValue = finalPrice / plan.months;
             const finalPriceArs = finalPrice * usdToArsRate;
             const installmentValueArs = installmentValue * usdToArsRate;
 
             tableHtml += `
                 <tr>
-                    <td><strong>${plan}</strong></td>
-                    <td>${(interestRate * 100).toFixed(0)}%</td>
+                    <td><strong>${plan.name}</strong></td>
+                    <td>${(plan.interest * 100).toFixed(0)}%</td>
                     <td>${installmentValue.toFixed(2)} / ${installmentValueArs.toFixed(2)}</td>
                     <td>${finalPrice.toFixed(2)} / ${finalPriceArs.toFixed(2)}</td>
                 </tr>`;
@@ -515,13 +518,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 let interestRate;
                 if (installments <= 3) {
-                    interestRate = 0.50;
-                } else if (installments >3 && installments <= 6) {
-                    interestRate = 0.100;
-                } else if (installments > 6 && installments <= 9) {
-                    interestRate = 0.150;
+                    interestRate = 0.38;
+                } else if (installments <= 6) {
+                    interestRate = 0.48;
+                } else if (installments <= 9) {
+                    interestRate = 0.60;
                 } else {
-                    interestRate = 0.200;
+                    interestRate = 0.70;
                 }
 
                 const finalPrice = priceContado * (1 + interestRate);
