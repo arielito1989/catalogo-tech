@@ -349,7 +349,6 @@ document.addEventListener('DOMContentLoaded', () => {
             CATEGORIA: document.getElementById('productCategory').value,
             'Precio PY': document.getElementById('productPricePY').value,
             'Precio al CONTADO': document.getElementById('productPriceContado').value,
-            en_venta: true, // Default to true for new products
         };
 
         const saveProduct = async (imagesArray) => {
@@ -363,6 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!currentlyEditingId) {
                 productDataToSend.id = `prod-${new Date().getTime()}`;
+                productDataToSend.en_venta = true; // Set for new products
             }
 
             try {
@@ -429,6 +429,8 @@ document.addEventListener('DOMContentLoaded', () => {
             handleEdit(productId);
         } else if (button.classList.contains('delete-product')) {
             handleDelete(productId);
+        } else if (button.classList.contains('manage-sale')) {
+            openManageSaleModal(productId);
         }
     });
 
