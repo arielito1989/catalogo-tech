@@ -16,32 +16,41 @@ const pool = new Pool({
     ssl: isProduction ? { rejectUnauthorized: false } : false
 });
 
-// Function to create the products table if it doesn't exist
-const createTable = async () => {
-    const createTableQuery = `
-        CREATE TABLE IF NOT EXISTS products (
-            id TEXT PRIMARY KEY,
-            Producto TEXT,
-            CATEGORIA TEXT,
-            "Precio PY" REAL,
-            "Precio al CONTADO" REAL,
-            Imagenes TEXT,
-            en_venta BOOLEAN NOT NULL DEFAULT TRUE,
-            plan_pago_elegido TEXT,
-            cuotas_pagadas INTEGER NOT NULL DEFAULT 0
-        );
-    `;
+// Function to create and update the products table schema
+const initializeDatabase = async () => {
+    const client = await pool.connect();
     try {
-        const client = await pool.connect();
-        await client.query(createTableQuery);
-        client.release();
-        console.log('Products table created or already exists.');
+        // Base table creation
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS products (
+                id TEXT PRIMARY KEY,
+                Producto TEXT,
+                CATEGORIA TEXT,
+                "Precio PY" REAL,
+                "Precio al CONTADO" REAL,
+                Imagenes TEXT,
+                en_venta BOOLEAN NOT NULL DEFAULT TRUE,
+                plan_pago_elegido TEXT,
+                cuotas_pagadas INTEGER NOT NULL DEFAULT 0
+            );
+        `);
+
+        // Add 'fecha_inicio_pago' column if it doesn't exist to avoid errors on existing databases
+        const columnCheck = await client.query("SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'fecha_inicio_pago'");
+        if (columnCheck.rowCount === 0) {
+            await client.query('ALTER TABLE products ADD COLUMN fecha_inicio_pago DATE;');
+            console.log('Column "fecha_inicio_pago" added to products table.');
+        }
+        
+        console.log('Database schema is up to date.');
     } catch (err) {
-        console.error('Error creating table:', err);
+        console.error('Error during database initialization:', err);
+    } finally {
+        client.release();
     }
 };
 
-createTable();
+initializeDatabase();
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(process.cwd(), 'public')));
@@ -115,9 +124,11 @@ app.post('/login', (req, res) => {
 app.get('/products', async (req, res) => {
     try {
         const client = await pool.connect();
-        const result = await client.query('SELECT * FROM products');
+        // Ensure all relevant fields are selected
+        const result = await client.query('SELECT id, producto, categoria, "Precio PY", "Precio al CONTADO", imagenes, en_venta, plan_pago_elegido, cuotas_pagadas, fecha_inicio_pago FROM products ORDER BY producto ASC');
         client.release();
         
+        // Map database rows to the structure expected by the frontend
         const productsWithCorrectKeys = result.rows.map(row => ({
             id: row.id,
             Producto: row.producto,
@@ -126,6 +137,9 @@ app.get('/products', async (req, res) => {
             'Precio al CONTADO': row['Precio al CONTADO'],
             Imagenes: row.imagenes ? JSON.parse(row.imagenes) : [],
             en_venta: row.en_venta,
+            plan_pago_elegido: row.plan_pago_elegido, // Make sure this is sent
+            cuotas_pagadas: row.cuotas_pagadas,       // Make sure this is sent
+            fecha_inicio_pago: row.fecha_inicio_pago   // Make sure this is sent
         }));
         res.json(productsWithCorrectKeys);
     } catch (err) {
@@ -245,34 +259,31 @@ app.put('/products/:id/status', async (req, res) => {
 
 app.put('/products/:id/sale', async (req, res) => {
     const { id } = req.params;
-    const { en_venta, plan_pago_elegido, cuotas_pagadas } = req.body;
+    // Include fecha_inicio_pago in the destructured request body
+    const { en_venta, plan_pago_elegido, cuotas_pagadas, fecha_inicio_pago } = req.body;
 
-    // Build the query dynamically based on the fields provided
     const fields = [];
     const values = [];
-    let query = 'UPDATE products SET ';
+    
+    // Helper to add fields to the update query
+    const addField = (name, value) => {
+        if (value !== undefined) {
+            values.push(value);
+            fields.push(`${name} = ${values.length}`);
+        }
+    };
 
-    if (en_venta !== undefined) {
-        values.push(en_venta);
-        fields.push(`en_venta = ${values.length}`);
-    }
-    if (plan_pago_elegido !== undefined) {
-        values.push(plan_pago_elegido);
-        fields.push(`plan_pago_elegido = ${values.length}`);
-    }
-    if (cuotas_pagadas !== undefined) {
-        values.push(cuotas_pagadas);
-        fields.push(`cuotas_pagadas = ${values.length}`);
-    }
+    addField('en_venta', en_venta);
+    addField('plan_pago_elegido', plan_pago_elegido);
+    addField('cuotas_pagadas', cuotas_pagadas);
+    addField('fecha_inicio_pago', fecha_inicio_pago);
 
     if (fields.length === 0) {
         return res.status(400).json({ error: 'No fields to update provided.' });
     }
 
-    query += fields.join(', ');
+    const query = `UPDATE products SET ${fields.join(', ')} WHERE id = ${values.length + 1} RETURNING *`;
     values.push(id);
-    query += ` WHERE id = ${values.length} RETURNING *`;
-
 
     try {
         const client = await pool.connect();
