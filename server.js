@@ -216,6 +216,14 @@ app.delete('/products/:id', async (req, res) => {
 });
 
 // This is the crucial part for Vercel.
-// We need to export the server, not the app.
-// Vercel will handle the listening part.
-module.exports = server;
+// We need to export the app itself.
+module.exports = app;
+
+// This part is for local development.
+// Vercel will ignore this.
+if (process.env.NODE_ENV !== 'production') {
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () => {
+        console.log(`Server running on http://localhost:${PORT}`);
+    });
+}

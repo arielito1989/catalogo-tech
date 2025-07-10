@@ -503,44 +503,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return tableHtml;
     }
 
-    function addCalculatorListener(product) {
-        const calculateButton = document.getElementById('calculate-installments');
-        if (calculateButton) {
-            calculateButton.addEventListener('click', () => {
-                const installments = parseInt(document.getElementById('installments').value);
-                const priceContado = parseFloat(product['Precio al CONTADO']);
-                const resultDiv = document.getElementById('installment-result');
-
-                if (isNaN(installments) || installments <= 0 || isNaN(priceContado)) {
-                    resultDiv.innerHTML = '<p class="text-danger">Por favor, ingrese un número de cuotas válido.</p>';
-                    return;
-                }
-
-                let interestRate;
-                if (installments <= 3) {
-                    interestRate = 0.38;
-                } else if (installments <= 6) {
-                    interestRate = 0.48;
-                } else if (installments <= 9) {
-                    interestRate = 0.60;
-                } else {
-                    interestRate = 0.70;
-                }
-
-                const finalPrice = priceContado * (1 + interestRate);
-                const installmentValue = finalPrice / installments;
-                const finalPriceArs = finalPrice * usdToArsRate;
-                const installmentValueArs = installmentValue * usdToArsRate;
-
-                resultDiv.innerHTML = `
-                    <h5>Resultado del Cálculo</h5>
-                    <p><strong>Precio Final Financiado:</strong> ${finalPrice.toFixed(2)} USD / ${finalPriceArs.toFixed(2)} ARS</p>
-                    <p><strong>Cantidad de Cuotas:</strong> ${installments}</p>
-                    <p><strong>Valor de cada Cuota:</strong> ${installmentValue.toFixed(2)} USD / ${installmentValueArs.toFixed(2)} ARS</p>
-                `;
-            });
-        }
-    }
+    
 
     // --- THEME TOGGLE ---
     const currentTheme = localStorage.getItem('theme') || 'dark';
