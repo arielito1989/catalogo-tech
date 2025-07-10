@@ -9,10 +9,7 @@ const app = express();
 const server = http.createServer(app);
 
 const pool = new Pool({
-    connectionString: process.env.POSTGRES_URL,
-    ssl: {
-        rejectUnauthorized: false
-    }
+    connectionString: process.env.DATABASE_URL
 });
 
 const initializeDatabase = async () => {
