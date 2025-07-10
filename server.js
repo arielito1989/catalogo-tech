@@ -75,6 +75,41 @@ app.use((req, res, next) => {
     next();
 });
 
+// A centralized function to map database rows to the client-side product structure.
+// This ensures consistency and safety, especially with JSON parsing.
+const mapProductForClient = (row) => {
+    if (!row) return null;
+
+    let imagenes = [];
+    if (row.imagenes) {
+        try {
+            // Attempt to parse the JSON string from the database.
+            const parsed = JSON.parse(row.imagenes);
+            // Ensure the result is an array before assigning it.
+            if (Array.isArray(parsed)) {
+                imagenes = parsed;
+            }
+        } catch (e) {
+            // If parsing fails, log the error and default to an empty array.
+            console.error(`Error parsing Imagenes JSON for product id ${row.id}:`, row.imagenes);
+        }
+    }
+
+    // Return a consistently structured product object.
+    return {
+        id: row.id,
+        Producto: row.producto, // Map from db's 'producto' to client's 'Producto'
+        CATEGORIA: row.categoria, // Map from db's 'categoria' to client's 'CATEGORIA'
+        'Precio PY': row['Precio PY'],
+        'Precio al CONTADO': row['Precio al CONTADO'],
+        Imagenes: imagenes, // The safely parsed array of images.
+        en_venta: row.en_venta,
+        plan_pago_elegido: row.plan_pago_elegido,
+        cuotas_pagadas: row.cuotas_pagadas,
+        fecha_inicio_pago: row.fecha_inicio_pago,
+    };
+};
+
 // --- API Endpoints ---
 
 let exchangeRateCache = { value: null, timestamp: null };
@@ -124,24 +159,12 @@ app.post('/login', (req, res) => {
 app.get('/products', async (req, res) => {
     try {
         const client = await pool.connect();
-        // Ensure all relevant fields are selected
-        const result = await client.query('SELECT id, producto, categoria, "Precio PY", "Precio al CONTADO", imagenes, en_venta, plan_pago_elegido, cuotas_pagadas, fecha_inicio_pago FROM products ORDER BY producto ASC');
+        const result = await client.query('SELECT * FROM products ORDER BY producto ASC');
         client.release();
         
-        // Map database rows to the structure expected by the frontend
-        const productsWithCorrectKeys = result.rows.map(row => ({
-            id: row.id,
-            Producto: row.producto,
-            CATEGORIA: row.categoria,
-            'Precio PY': row['Precio PY'],
-            'Precio al CONTADO': row['Precio al CONTADO'],
-            Imagenes: row.imagenes ? JSON.parse(row.imagenes) : [],
-            en_venta: row.en_venta,
-            plan_pago_elegido: row.plan_pago_elegido, // Make sure this is sent
-            cuotas_pagadas: row.cuotas_pagadas,       // Make sure this is sent
-            fecha_inicio_pago: row.fecha_inicio_pago   // Make sure this is sent
-        }));
-        res.json(productsWithCorrectKeys);
+        // Use the mapper for each product to ensure consistent data structure.
+        const products = result.rows.map(mapProductForClient);
+        res.json(products);
     } catch (err) {
         console.error('Error getting products:', err);
         res.status(500).json({ error: 'Error fetching products from database.' });
@@ -150,19 +173,16 @@ app.get('/products', async (req, res) => {
 
 app.post('/products', async (req, res) => {
     const { id, Producto, CATEGORIA, "Precio PY": PrecioPY, "Precio al CONTADO": PrecioContado, Imagenes } = req.body;
-    // The 'en_venta' column is omitted, so it will use the DEFAULT TRUE value from the DB schema
-    const query = 'INSERT INTO products (id, Producto, CATEGORIA, "Precio PY", "Precio al CONTADO", Imagenes) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *';
-    const values = [id, Producto, CATEGORIA, PrecioPY, PrecioContado, JSON.stringify(Imagenes)];
+    const query = 'INSERT INTO products (id, producto, categoria, "Precio PY", "Precio al CONTADO", imagenes, en_venta) VALUES ($1, $2, $3, $4, $5, $6, TRUE) RETURNING *';
+    const values = [id, Producto, CATEGORIA, PrecioPY, PrecioContado, JSON.stringify(Imagenes || [])];
 
     try {
         const client = await pool.connect();
         const result = await client.query(query, values);
         client.release();
-        const newProduct = {
-            ...result.rows[0],
-            Imagenes: result.rows[0].imagenes ? JSON.parse(result.rows[0].imagenes) : []
-        };
-        // req.io.emit('productAdded', newProduct); // Desactivado para evitar polling
+        
+        // Use the mapper on the newly created product.
+        const newProduct = mapProductForClient(result.rows[0]);
         res.status(201).json({ message: 'Product added', product: newProduct });
     } catch (err) {
         console.error('Error adding product:', err);
@@ -175,15 +195,15 @@ app.put('/products/:id', async (req, res) => {
     const { Producto, CATEGORIA, "Precio PY": PrecioPY, "Precio al CONTADO": PrecioContado, Imagenes } = req.body;
     const query = `
         UPDATE products SET 
-            Producto = $1, 
-            CATEGORIA = $2, 
+            producto = $1, 
+            categoria = $2, 
             "Precio PY" = $3, 
             "Precio al CONTADO" = $4, 
-            Imagenes = $5 
+            imagenes = $5 
         WHERE id = $6
         RETURNING *
     `;
-    const values = [Producto, CATEGORIA, PrecioPY, PrecioContado, JSON.stringify(Imagenes), id];
+    const values = [Producto, CATEGORIA, PrecioPY, PrecioContado, JSON.stringify(Imagenes || []), id];
 
     try {
         const client = await pool.connect();
@@ -191,11 +211,8 @@ app.put('/products/:id', async (req, res) => {
         client.release();
 
         if (result.rowCount > 0) {
-            const updatedProduct = {
-                ...result.rows[0],
-                Imagenes: result.rows[0].imagenes ? JSON.parse(result.rows[0].imagenes) : []
-            };
-            // req.io.emit('productUpdated', updatedProduct); // Desactivado para evitar polling
+            // Use the mapper on the updated product.
+            const updatedProduct = mapProductForClient(result.rows[0]);
             res.json({ message: 'Product updated', product: updatedProduct });
         } else {
             res.status(404).json({ error: 'Product not found' });
@@ -243,10 +260,8 @@ app.put('/products/:id/status', async (req, res) => {
         client.release();
 
         if (result.rowCount > 0) {
-            const updatedProduct = {
-                ...result.rows[0],
-                Imagenes: result.rows[0].imagenes ? JSON.parse(result.rows[0].imagenes) : []
-            };
+            // Use the mapper on the updated product.
+            const updatedProduct = mapProductForClient(result.rows[0]);
             res.json({ message: 'Product status updated', product: updatedProduct });
         } else {
             res.status(404).json({ error: 'Product not found' });
@@ -259,13 +274,11 @@ app.put('/products/:id/status', async (req, res) => {
 
 app.put('/products/:id/sale', async (req, res) => {
     const { id } = req.params;
-    // Include fecha_inicio_pago in the destructured request body
     const { en_venta, plan_pago_elegido, cuotas_pagadas, fecha_inicio_pago } = req.body;
 
     const fields = [];
     const values = [];
     
-    // Helper to add fields to the update query
     const addField = (name, value) => {
         if (value !== undefined) {
             values.push(value);
@@ -276,7 +289,8 @@ app.put('/products/:id/sale', async (req, res) => {
     addField('en_venta', en_venta);
     addField('plan_pago_elegido', plan_pago_elegido);
     addField('cuotas_pagadas', cuotas_pagadas);
-    addField('fecha_inicio_pago', fecha_inicio_pago);
+    // Ensure null is saved if date is cleared, not an empty string
+    addField('fecha_inicio_pago', fecha_inicio_pago || null);
 
     if (fields.length === 0) {
         return res.status(400).json({ error: 'No fields to update provided.' });
@@ -291,10 +305,8 @@ app.put('/products/:id/sale', async (req, res) => {
         client.release();
 
         if (result.rowCount > 0) {
-            const updatedProduct = {
-                ...result.rows[0],
-                Imagenes: result.rows[0].imagenes ? JSON.parse(result.rows[0].imagenes) : []
-            };
+            // Use the mapper on the updated product.
+            const updatedProduct = mapProductForClient(result.rows[0]);
             res.json({ message: 'Product sale data updated', product: updatedProduct });
         } else {
             res.status(404).json({ error: 'Product not found' });
