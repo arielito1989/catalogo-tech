@@ -46,7 +46,8 @@ app.use(express.static(path.join(process.cwd(), 'public')));
 // --- Socket.IO Vercel-compatible setup ---
 const io = new Server(server, {
     transports: ['polling'],
-    cors: { origin: "*", methods: ["GET", "POST"] }
+    cors: { origin: "*", methods: ["GET", "POST"] },
+    cookie: false
 });
 
 io.on('connection', (socket) => {
