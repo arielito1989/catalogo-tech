@@ -180,20 +180,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 const priceArs = (parseFloat(product['Precio al CONTADO']) * usdToArsRate).toFixed(2);
                 const row = document.createElement('tr');
                 const imageUrl = product.Imagenes && product.Imagenes.length > 0 ? product.Imagenes[0] : 'https://via.placeholder.com/50';
+                
+                if (!product.en_venta) {
+                    row.classList.add('product-sold');
+                }
+
+                const actionsHtml = product.en_venta
+                    ? `
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input toggle-en-venta" type="checkbox" role="switch" id="toggle-${product.id}" data-id="${product.id}" checked>
+                            <label class="form-check-label" for="toggle-${product.id}">En Venta</label>
+                        </div>
+                    `
+                    : `
+                        <button class="btn btn-sm btn-info manage-sale" data-id="${product.id}" title="Gestionar Venta">
+                            <i class="fas fa-dolly"></i> Gestionar
+                        </button>
+                    `;
+
                 row.innerHTML = `
                     <td><img src="${imageUrl}" alt="${product.Producto}" class="img-thumbnail" style="width: 50px; height: 50px; object-fit: cover;"></td>
-                    <td>${product.Producto || ''}</td>
+                    <td class="product-name">${product.Producto || ''} ${!product.en_venta ? '<span class="badge bg-danger">Vendido</span>' : ''}</td>
                     <td>${product.CATEGORIA || ''}</td>
                     <td>${product['Precio al CONTADO'] || ''}</td>
                     <td>${priceArs}</td>
                     <td>
-                        <button class="btn btn-sm btn-info view-details" data-id="${product.id}" title="Ver Detalles"><i class="fas fa-eye"></i></button>
+                        ${actionsHtml}
                         <button class="btn btn-sm btn-success view-plan" data-id="${product.id}" title="Plan de Pagos"><i class="fas fa-credit-card"></i></button>
                         <button class="btn btn-sm btn-warning edit-product" data-id="${product.id}" title="Editar"><i class="fas fa-pencil-alt"></i></button>
                         <button class="btn btn-sm btn-danger delete-product" data-id="${product.id}" title="Eliminar"><i class="fas fa-trash"></i></button>
                     </td>
                 `;
                 catalogTableBody.appendChild(row);
+            });
             });
             renderPaginationControls(totalPages);
         }
@@ -356,6 +375,36 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    catalogTableBody.addEventListener('change', async (e) => {
+        if (e.target.classList.contains('toggle-en-venta')) {
+            const productId = e.target.dataset.id;
+            const en_venta = e.target.checked;
+
+            try {
+                const response = await fetch(`/products/${productId}/status`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ en_venta })
+                });
+
+                if (response.ok) {
+                    loadProducts(); // Recargar para reflejar el cambio visual
+                } else {
+                    const errorData = await response.json();
+                    console.error('Error updating product status:', errorData.error);
+                    alert('Error al actualizar el estado del producto: ' + errorData.error);
+                    e.target.checked = !en_venta; // Revertir el switch si hay error
+                }
+            } catch (error) {
+                console.error('Network error updating product status:', error);
+                alert('Error de red al actualizar el estado del producto.');
+                e.target.checked = !en_venta; // Revertir el switch si hay error
+            }
+        }
+    });
+
     function handleEdit(productId) {
         const product = products.find(p => p.id === productId);
         if (!product) return;
@@ -363,10 +412,21 @@ document.addEventListener('DOMContentLoaded', () => {
         currentlyEditingId = productId;
         addProductModalTitle.textContent = 'Editar Producto';
 
+        const priceContado = parseFloat(product['Precio al CONTADO']);
+        const pricePy = parseFloat(product['Precio PY']);
+        
         document.getElementById('productName').value = product.Producto;
         document.getElementById('productCategory').value = product.CATEGORIA;
-        document.getElementById('productPricePY').value = product['Precio PY'];
-        document.getElementById('productPriceContado').value = product['Precio al CONTADO'];
+        document.getElementById('productPricePY').value = pricePy.toFixed(2);
+        document.getElementById('productPriceContado').value = priceContado.toFixed(2);
+        
+        // Calculate and set ARS price
+        if (!isNaN(priceContado)) {
+            document.getElementById('productPriceArs').value = (priceContado * usdToArsRate).toFixed(2);
+        } else {
+            document.getElementById('productPriceArs').value = '';
+        }
+
         // Clear the file input for security reasons
         document.getElementById('productImages').value = '';
 
@@ -503,7 +563,207 @@ document.addEventListener('DOMContentLoaded', () => {
         return tableHtml;
     }
 
-    
+    const manageSaleModalEl = document.getElementById('manageSaleModal');
+    const manageSaleModal = new bootstrap.Modal(manageSaleModalEl);
+    const manageSaleModalBody = document.getElementById('manageSaleModalBody');
+    const manageSaleModalTitle = document.getElementById('manageSaleModalTitle');
+    let currentManagingSaleId = null;
+
+    function openManageSaleModal(productId) {
+        currentManagingSaleId = productId;
+        const product = products.find(p => p.id === productId);
+        if (!product) return;
+
+        manageSaleModalTitle.textContent = `Gestionar Venta: ${product.Producto}`;
+
+        const plans = [
+            { months: 3, interest: 0.50, name: 'Plan 3 Cuotas' },
+            { months: 6, interest: 1.00, name: 'Plan 6 Cuotas' },
+            { months: 9, interest: 1.50, name: 'Plan 9 Cuotas' },
+            { months: 12, interest: 2.00, name: 'Plan Exclusivo' }
+        ];
+
+        let planOptionsHtml = '<option value="Contado">Contado</option>';
+        plans.forEach(plan => {
+            planOptionsHtml += `<option value="${plan.name}" ${product.plan_pago_elegido === plan.name ? 'selected' : ''}>${plan.name}</option>`;
+        });
+
+        manageSaleModalBody.innerHTML = `
+            <div class="mb-3">
+                <label for="sale-plan-select" class="form-label">Plan de Pago Elegido</label>
+                <select class="form-select" id="sale-plan-select">
+                    ${planOptionsHtml}
+                </select>
+            </div>
+            <div id="installments-tracker"></div>
+        `;
+
+        const planSelect = document.getElementById('sale-plan-select');
+        const trackerDiv = document.getElementById('installments-tracker');
+
+        function renderInstallmentTracker() {
+            const selectedPlanName = planSelect.value;
+            const selectedPlan = plans.find(p => p.name === selectedPlanName);
+            
+            if (!selectedPlan) { // Contado
+                trackerDiv.innerHTML = '';
+                return;
+            }
+
+            let trackerHtml = `<h5>Seguimiento de Cuotas (${selectedPlan.months} cuotas)</h5>`;
+            for (let i = 1; i <= selectedPlan.months; i++) {
+                const isPaid = i <= (product.cuotas_pagadas || 0);
+                trackerHtml += `
+                    <div class="form-check">
+                        <input class="form-check-input installment-checkbox" type="checkbox" value="${i}" id="inst-${i}" ${isPaid ? 'checked' : ''}>
+                        <label class="form-check-label" for="inst-${i}">
+                            Cuota ${i}
+                        </label>
+                    </div>
+                `;
+            }
+            trackerDiv.innerHTML = trackerHtml;
+        }
+
+        planSelect.addEventListener('change', renderInstallmentTracker);
+        renderInstallmentTracker(); // Initial render
+        manageSaleModal.show();
+    }
+
+    document.getElementById('save-sale-changes').addEventListener('click', async () => {
+        if (!currentManagingSaleId) return;
+
+        const plan_pago_elegido = document.getElementById('sale-plan-select').value;
+        const paidInstallmentsCheckboxes = document.querySelectorAll('.installment-checkbox:checked');
+        const cuotas_pagadas = paidInstallmentsCheckboxes.length;
+
+        const saleData = {
+            en_venta: false, // When managing, it's always sold
+            plan_pago_elegido,
+            cuotas_pagadas
+        };
+
+        try {
+            const response = await fetch(`/products/${currentManagingSaleId}/sale`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(saleData)
+            });
+
+            if (response.ok) {
+                manageSaleModal.hide();
+                loadProducts();
+            } else {
+                const errorData = await response.json();
+                alert('Error al guardar los cambios: ' + errorData.error);
+            }
+        } catch (error) {
+            alert('Error de red al guardar los cambios.');
+        }
+    });
+
+    const manageSaleModalEl = document.getElementById('manageSaleModal');
+    const manageSaleModal = new bootstrap.Modal(manageSaleModalEl);
+    const manageSaleModalBody = document.getElementById('manageSaleModalBody');
+    const manageSaleModalTitle = document.getElementById('manageSaleModalTitle');
+    let currentManagingSaleId = null;
+
+    function openManageSaleModal(productId) {
+        currentManagingSaleId = productId;
+        const product = products.find(p => p.id === productId);
+        if (!product) return;
+
+        manageSaleModalTitle.textContent = `Gestionar Venta: ${product.Producto}`;
+
+        const plans = [
+            { months: 3, interest: 0.50, name: 'Plan 3 Cuotas' },
+            { months: 6, interest: 1.00, name: 'Plan 6 Cuotas' },
+            { months: 9, interest: 1.50, name: 'Plan 9 Cuotas' },
+            { months: 12, interest: 2.00, name: 'Plan Exclusivo' }
+        ];
+
+        let planOptionsHtml = '<option value="Contado">Contado</option>';
+        plans.forEach(plan => {
+            planOptionsHtml += `<option value="${plan.name}" ${product.plan_pago_elegido === plan.name ? 'selected' : ''}>${plan.name}</option>`;
+        });
+
+        manageSaleModalBody.innerHTML = `
+            <div class="mb-3">
+                <label for="sale-plan-select" class="form-label">Plan de Pago Elegido</label>
+                <select class="form-select" id="sale-plan-select">
+                    ${planOptionsHtml}
+                </select>
+            </div>
+            <div id="installments-tracker"></div>
+        `;
+
+        const planSelect = document.getElementById('sale-plan-select');
+        const trackerDiv = document.getElementById('installments-tracker');
+
+        function renderInstallmentTracker() {
+            const selectedPlanName = planSelect.value;
+            const selectedPlan = plans.find(p => p.name === selectedPlanName);
+            
+            if (!selectedPlan) { // Contado
+                trackerDiv.innerHTML = '';
+                return;
+            }
+
+            let trackerHtml = `<h5>Seguimiento de Cuotas (${selectedPlan.months} cuotas)</h5>`;
+            for (let i = 1; i <= selectedPlan.months; i++) {
+                const isPaid = i <= (product.cuotas_pagadas || 0);
+                trackerHtml += `
+                    <div class="form-check">
+                        <input class="form-check-input installment-checkbox" type="checkbox" value="${i}" id="inst-${i}" ${isPaid ? 'checked' : ''}>
+                        <label class="form-check-label" for="inst-${i}">
+                            Cuota ${i}
+                        </label>
+                    </div>
+                `;
+            }
+            trackerDiv.innerHTML = trackerHtml;
+        }
+
+        planSelect.addEventListener('change', renderInstallmentTracker);
+        renderInstallmentTracker(); // Initial render
+        manageSaleModal.show();
+    }
+
+    document.getElementById('save-sale-changes').addEventListener('click', async () => {
+        if (!currentManagingSaleId) return;
+
+        const plan_pago_elegido = document.getElementById('sale-plan-select').value;
+        const paidInstallmentsCheckboxes = document.querySelectorAll('.installment-checkbox:checked');
+        const cuotas_pagadas = paidInstallmentsCheckboxes.length;
+
+        const saleData = {
+            en_venta: false, // When managing, it's always sold
+            plan_pago_elegido,
+            cuotas_pagadas
+        };
+
+        try {
+            const response = await fetch(`/products/${currentManagingSaleId}/sale`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(saleData)
+            });
+
+            if (response.ok) {
+                manageSaleModal.hide();
+                loadProducts();
+            } else {
+                const errorData = await response.json();
+                alert('Error al guardar los cambios: ' + errorData.error);
+            }
+        } catch (error) {
+            alert('Error de red al guardar los cambios.');
+        }
+    });
 
     // --- THEME TOGGLE ---
     const currentTheme = localStorage.getItem('theme') || 'dark';

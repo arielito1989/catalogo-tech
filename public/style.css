@@ -1,57 +1,8 @@
-.image-counter {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    background-color: rgba(0, 0, 0, 0.7);
-    color: white;
-    padding: 3px 8px;
-    border-radius: 5px;
-    font-size: 0.9em;
-    z-index: 2;
+.product-sold td {
+    text-decoration: line-through;
+    opacity: 0.6;
 }
 
-/* --- Modal de Detalles --- */
-#productCarousel .carousel-item img {
-    max-height: 450px; /* Ajusta este valor según sea necesario */
-    width: auto;
-    margin: 0 auto; /* Centra la imagen si es más estrecha que el carrusel */
-    object-fit: contain;
-}
-
-/* Controles del carrusel más visibles */
-#productCarousel .carousel-control-prev,
-#productCarousel .carousel-control-next {
-    background-color: rgba(0, 0, 0, 0.6); /* Fondo más oscuro y visible */
-    width: 10%; /* Aumentar un poco el ancho del área de control */
-    border-radius: 5px; /* Bordes ligeramente redondeados para los controles */
-    opacity: 1; /* Asegurar que no haya opacidad residual de Bootstrap */
-    transition: background-color 0.3s ease; /* Transición suave al pasar el mouse */
-}
-
-#productCarousel .carousel-control-prev:hover,
-#productCarousel .carousel-control-next:hover {
-    background-color: rgba(0, 0, 0, 0.8); /* Más oscuro al pasar el mouse */
-}
-
-/* Estilos para el reloj */
-.clock-container {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background-color: rgba(0, 0, 0, 0.7);
-    color: white;
-    padding: 10px 15px;
-    border-radius: 8px;
-    font-size: 1.2em;
-    z-index: 1000; /* Asegura que esté por encima de otros elementos */
-    font-family: 'Poppins', sans-serif;
-}
-
-@media (max-width: 768px) {
-    .clock-container {
-        bottom: 10px;
-        right: 10px;
-        font-size: 1em;
-        padding: 8px 12px;
-    }
+.product-sold .product-name {
+    font-style: italic;
 }

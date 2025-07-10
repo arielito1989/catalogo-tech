@@ -25,7 +25,10 @@ const createTable = async () => {
             CATEGORIA TEXT,
             "Precio PY" REAL,
             "Precio al CONTADO" REAL,
-            Imagenes TEXT
+            Imagenes TEXT,
+            en_venta BOOLEAN NOT NULL DEFAULT TRUE,
+            plan_pago_elegido TEXT,
+            cuotas_pagadas INTEGER NOT NULL DEFAULT 0
         );
     `;
     try {
@@ -204,6 +207,56 @@ app.delete('/products/:id', async (req, res) => {
     } catch (err) {
         console.error('Error deleting product:', err);
         res.status(500).json({ error: 'Error deleting product from database.' });
+    }
+});
+
+app.put('/products/:id/sale', async (req, res) => {
+    const { id } = req.params;
+    const { en_venta, plan_pago_elegido, cuotas_pagadas } = req.body;
+
+    // Build the query dynamically based on the fields provided
+    const fields = [];
+    const values = [];
+    let query = 'UPDATE products SET ';
+
+    if (en_venta !== undefined) {
+        fields.push(`en_venta = ${values.length + 1}`);
+        values.push(en_venta);
+    }
+    if (plan_pago_elegido !== undefined) {
+        fields.push(`plan_pago_elegido = ${values.length + 1}`);
+        values.push(plan_pago_elegido);
+    }
+    if (cuotas_pagadas !== undefined) {
+        fields.push(`cuotas_pagadas = ${values.length + 1}`);
+        values.push(cuotas_pagadas);
+    }
+
+    if (fields.length === 0) {
+        return res.status(400).json({ error: 'No fields to update provided.' });
+    }
+
+    query += fields.join(', ');
+    query += ` WHERE id = ${values.length + 1} RETURNING *`;
+    values.push(id);
+
+    try {
+        const client = await pool.connect();
+        const result = await client.query(query, values);
+        client.release();
+
+        if (result.rowCount > 0) {
+            const updatedProduct = {
+                ...result.rows[0],
+                Imagenes: result.rows[0].imagenes ? JSON.parse(result.rows[0].imagenes) : []
+            };
+            res.json({ message: 'Product sale data updated', product: updatedProduct });
+        } else {
+            res.status(404).json({ error: 'Product not found' });
+        }
+    } catch (err) {
+        console.error('Error updating product sale data:', err);
+        res.status(500).json({ error: 'Error updating product sale data in database.' });
     }
 });
 
