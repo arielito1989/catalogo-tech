@@ -70,12 +70,9 @@ const CACHE_DURATION = 12 * 60 * 60 * 1000; // 12 hours in milliseconds
 
 app.get('/api/exchange-rate', async (req, res) => {
     try {
-        // Check if rate is in cache and not expired
         if (exchangeRateCache.value && (Date.now() - exchangeRateCache.timestamp < CACHE_DURATION)) {
-            console.log('Serving exchange rate from cache.');
             return res.json({ rates: { ARS: exchangeRateCache.value } });
         }
-
         const apiKey = process.env.EXGENERATE_API_KEY;
         if (!apiKey) {
             return res.status(500).json({ error: 'Server configuration error: API key not set.' });
@@ -83,16 +80,11 @@ app.get('/api/exchange-rate', async (req, res) => {
         const url = `https://v6.exchangerate-api.com/v6/${apiKey}/pair/USD/ARS`;
         const apiResponse = await fetch(url);
         const data = await apiResponse.json();
-
         if (data.result === 'error') {
             return res.status(400).json({ error: `Exchange rate API error: ${data['error-type']}` });
         }
-
-        // Update cache
         exchangeRateCache.value = data.conversion_rate;
         exchangeRateCache.timestamp = Date.now();
-        console.log('Fetched new exchange rate and updated cache.');
-
         res.json({ rates: { ARS: data.conversion_rate } });
     } catch (error) {
         console.error('Unexpected error in /api/exchange-rate:', error);
@@ -125,8 +117,8 @@ app.get('/products', async (req, res) => {
         
         const productsWithCorrectKeys = result.rows.map(row => ({
             id: row.id,
-            Producto: row.producto, // Mapeo de minúsculas a mayúsculas
-            CATEGORIA: row.categoria, // Mapeo de minúsculas a mayúsculas
+            Producto: row.producto,
+            CATEGORIA: row.categoria,
             'Precio PY': row['Precio PY'],
             'Precio al CONTADO': row['Precio al CONTADO'],
             Imagenes: row.imagenes ? JSON.parse(row.imagenes) : []
@@ -151,7 +143,7 @@ app.post('/products', async (req, res) => {
             ...result.rows[0],
             Imagenes: result.rows[0].imagenes ? JSON.parse(result.rows[0].imagenes) : []
         };
-        req.io.emit('productAdded', newProduct);
+        // req.io.emit('productAdded', newProduct); // Desactivado para evitar polling
         res.status(201).json({ message: 'Product added', product: newProduct });
     } catch (err) {
         console.error('Error adding product:', err);
@@ -184,7 +176,7 @@ app.put('/products/:id', async (req, res) => {
                 ...result.rows[0],
                 Imagenes: result.rows[0].imagenes ? JSON.parse(result.rows[0].imagenes) : []
             };
-            req.io.emit('productUpdated', updatedProduct);
+            // req.io.emit('productUpdated', updatedProduct); // Desactivado para evitar polling
             res.json({ message: 'Product updated', product: updatedProduct });
         } else {
             res.status(404).json({ error: 'Product not found' });
@@ -216,14 +208,15 @@ app.delete('/products/:id', async (req, res) => {
 });
 
 // This is the crucial part for Vercel.
-// We need to export the app itself.
-module.exports = app;
+// We need to export the server, not the app.
+// Vercel will handle the listening part.
+module.exports = server;
 
 // This part is for local development.
 // Vercel will ignore this.
 if (process.env.NODE_ENV !== 'production') {
     const PORT = process.env.PORT || 3000;
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
         console.log(`Server running on http://localhost:${PORT}`);
     });
 }
