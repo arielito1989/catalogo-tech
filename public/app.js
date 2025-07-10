@@ -515,13 +515,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 let interestRate;
                 if (installments <= 3) {
-                    interestRate = 0.38;
-                } else if (installments <= 6) {
-                    interestRate = 0.48;
-                } else if (installments <= 9) {
-                    interestRate = 0.60;
+                    interestRate = 0.50;
+                } else if (installments >3 && installments <= 6) {
+                    interestRate = 0.100;
+                } else if (installments > 6 && installments <= 9) {
+                    interestRate = 0.150;
                 } else {
-                    interestRate = 0.70;
+                    interestRate = 0.200;
                 }
 
                 const finalPrice = priceContado * (1 + interestRate);
