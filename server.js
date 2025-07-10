@@ -7,11 +7,11 @@ const app = express();
 
 // Create a new pool of connections to the database.
 // The pool will read the connection details from the environment variables.
+const isProduction = process.env.NODE_ENV === 'production';
+
 const pool = new Pool({
     connectionString: process.env.POSTGRES_URL,
-    ssl: {
-        rejectUnauthorized: false
-    }
+    ssl: isProduction ? { rejectUnauthorized: false } : false
 });
 
 // Function to create the products table if it doesn't exist
