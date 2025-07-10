@@ -124,7 +124,8 @@ app.get('/products', async (req, res) => {
             CATEGORIA: row.categoria,
             'Precio PY': row['Precio PY'],
             'Precio al CONTADO': row['Precio al CONTADO'],
-            Imagenes: row.imagenes ? JSON.parse(row.imagenes) : []
+            Imagenes: row.imagenes ? JSON.parse(row.imagenes) : [],
+            en_venta: row.en_venta,
         }));
         res.json(productsWithCorrectKeys);
     } catch (err) {
@@ -134,9 +135,9 @@ app.get('/products', async (req, res) => {
 });
 
 app.post('/products', async (req, res) => {
-    const { id, Producto, CATEGORIA, "Precio PY": PrecioPY, "Precio al CONTADO": PrecioContado, Imagenes } = req.body;
-    const query = 'INSERT INTO products (id, Producto, CATEGORIA, "Precio PY", "Precio al CONTADO", Imagenes) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *';
-    const values = [id, Producto, CATEGORIA, PrecioPY, PrecioContado, JSON.stringify(Imagenes)];
+    const { id, Producto, CATEGORIA, "Precio PY": PrecioPY, "Precio al CONTADO": PrecioContado, Imagenes, en_venta } = req.body;
+    const query = 'INSERT INTO products (id, Producto, CATEGORIA, "Precio PY", "Precio al CONTADO", Imagenes, en_venta) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *';
+    const values = [id, Producto, CATEGORIA, PrecioPY, PrecioContado, JSON.stringify(Imagenes), en_venta];
 
     try {
         const client = await pool.connect();
