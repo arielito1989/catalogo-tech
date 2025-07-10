@@ -9,7 +9,14 @@ const socketIo = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server);
+const io = socketIo(server, {
+    path: '/socket.io',
+    transports: ['websocket', 'polling'], // Allow both transports
+    cors: { // Add CORS configuration
+        origin: "*", // Allow all origins for simplicity, can be restricted
+        methods: ["GET", "POST"]
+    }
+});
 
 io.on('connection', (socket) => {
     console.log('a user connected');
@@ -121,14 +128,19 @@ app.get('/products', async (req, res) => {
 // Add a new product
 app.post('/products', async (req, res) => {
     const { id, Producto, CATEGORIA, "Precio PY": PrecioPY, "Precio al CONTADO": PrecioContado, Imagenes } = req.body;
-    const query = 'INSERT INTO products (id, Producto, CATEGORIA, "Precio PY", "Precio al CONTADO", Imagenes) VALUES ($1, $2, $3, $4, $5, $6)';
+    const query = 'INSERT INTO products (id, Producto, CATEGORIA, "Precio PY", "Precio al CONTADO", Imagenes) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *';
     const values = [id, Producto, CATEGORIA, PrecioPY, PrecioContado, JSON.stringify(Imagenes)];
 
     try {
         const client = await pool.connect();
-        await client.query(query, values);
+        const result = await client.query(query, values);
         client.release();
-        res.status(201).json({ message: 'Product added' });
+        const newProduct = {
+            ...result.rows[0],
+            Imagenes: result.rows[0].imagenes ? JSON.parse(result.rows[0].imagenes) : []
+        };
+        io.emit('productAdded', newProduct);
+        res.status(201).json({ message: 'Product added', product: newProduct });
     } catch (err) {
         console.error('Error adding product:', err);
         res.status(500).json({ error: 'Error adding product to database.' });
@@ -147,6 +159,7 @@ app.put('/products/:id', async (req, res) => {
             "Precio al CONTADO" = $4, 
             Imagenes = $5 
         WHERE id = $6
+        RETURNING *
     `;
     const values = [Producto, CATEGORIA, PrecioPY, PrecioContado, JSON.stringify(Imagenes), id];
 
@@ -154,7 +167,17 @@ app.put('/products/:id', async (req, res) => {
         const client = await pool.connect();
         const result = await client.query(query, values);
         client.release();
-        res.json({ message: 'Product updated', changes: result.rowCount });
+
+        if (result.rowCount > 0) {
+            const updatedProduct = {
+                ...result.rows[0],
+                Imagenes: result.rows[0].imagenes ? JSON.parse(result.rows[0].imagenes) : []
+            };
+            io.emit('productUpdated', updatedProduct);
+            res.json({ message: 'Product updated', product: updatedProduct });
+        } else {
+            res.status(404).json({ error: 'Product not found' });
+        }
     } catch (err) {
         console.error('Error updating product:', err);
         res.status(500).json({ error: 'Error updating product in database.' });
@@ -170,7 +193,12 @@ app.delete('/products/:id', async (req, res) => {
         const client = await pool.connect();
         const result = await client.query(query, [id]);
         client.release();
-        res.json({ message: 'Product deleted', changes: result.rowCount });
+        if (result.rowCount > 0) {
+            io.emit('productDeleted', id);
+            res.json({ message: 'Product deleted', changes: result.rowCount });
+        } else {
+            res.status(404).json({ error: 'Product not found' });
+        }
     } catch (err) {
         console.error('Error deleting product:', err);
         res.status(500).json({ error: 'Error deleting product from database.' });
