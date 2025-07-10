@@ -563,106 +563,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return tableHtml;
     }
 
-    const manageSaleModalEl = document.getElementById('manageSaleModal');
-    const manageSaleModal = new bootstrap.Modal(manageSaleModalEl);
-    const manageSaleModalBody = document.getElementById('manageSaleModalBody');
-    const manageSaleModalTitle = document.getElementById('manageSaleModalTitle');
-    let currentManagingSaleId = null;
-
-    function openManageSaleModal(productId) {
-        currentManagingSaleId = productId;
-        const product = products.find(p => p.id === productId);
-        if (!product) return;
-
-        manageSaleModalTitle.textContent = `Gestionar Venta: ${product.Producto}`;
-
-        const plans = [
-            { months: 3, interest: 0.50, name: 'Plan 3 Cuotas' },
-            { months: 6, interest: 1.00, name: 'Plan 6 Cuotas' },
-            { months: 9, interest: 1.50, name: 'Plan 9 Cuotas' },
-            { months: 12, interest: 2.00, name: 'Plan Exclusivo' }
-        ];
-
-        let planOptionsHtml = '<option value="Contado">Contado</option>';
-        plans.forEach(plan => {
-            planOptionsHtml += `<option value="${plan.name}" ${product.plan_pago_elegido === plan.name ? 'selected' : ''}>${plan.name}</option>`;
-        });
-
-        manageSaleModalBody.innerHTML = `
-            <div class="mb-3">
-                <label for="sale-plan-select" class="form-label">Plan de Pago Elegido</label>
-                <select class="form-select" id="sale-plan-select">
-                    ${planOptionsHtml}
-                </select>
-            </div>
-            <div id="installments-tracker"></div>
-        `;
-
-        const planSelect = document.getElementById('sale-plan-select');
-        const trackerDiv = document.getElementById('installments-tracker');
-
-        function renderInstallmentTracker() {
-            const selectedPlanName = planSelect.value;
-            const selectedPlan = plans.find(p => p.name === selectedPlanName);
-            
-            if (!selectedPlan) { // Contado
-                trackerDiv.innerHTML = '';
-                return;
-            }
-
-            let trackerHtml = `<h5>Seguimiento de Cuotas (${selectedPlan.months} cuotas)</h5>`;
-            for (let i = 1; i <= selectedPlan.months; i++) {
-                const isPaid = i <= (product.cuotas_pagadas || 0);
-                trackerHtml += `
-                    <div class="form-check">
-                        <input class="form-check-input installment-checkbox" type="checkbox" value="${i}" id="inst-${i}" ${isPaid ? 'checked' : ''}>
-                        <label class="form-check-label" for="inst-${i}">
-                            Cuota ${i}
-                        </label>
-                    </div>
-                `;
-            }
-            trackerDiv.innerHTML = trackerHtml;
-        }
-
-        planSelect.addEventListener('change', renderInstallmentTracker);
-        renderInstallmentTracker(); // Initial render
-        manageSaleModal.show();
-    }
-
-    document.getElementById('save-sale-changes').addEventListener('click', async () => {
-        if (!currentManagingSaleId) return;
-
-        const plan_pago_elegido = document.getElementById('sale-plan-select').value;
-        const paidInstallmentsCheckboxes = document.querySelectorAll('.installment-checkbox:checked');
-        const cuotas_pagadas = paidInstallmentsCheckboxes.length;
-
-        const saleData = {
-            en_venta: false, // When managing, it's always sold
-            plan_pago_elegido,
-            cuotas_pagadas
-        };
-
-        try {
-            const response = await fetch(`/products/${currentManagingSaleId}/sale`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(saleData)
-            });
-
-            if (response.ok) {
-                manageSaleModal.hide();
-                loadProducts();
-            } else {
-                const errorData = await response.json();
-                alert('Error al guardar los cambios: ' + errorData.error);
-            }
-        } catch (error) {
-            alert('Error de red al guardar los cambios.');
-        }
-    });
+    // (Removed duplicate manageSaleModal and openManageSaleModal block)
 
     const manageSaleModalEl = document.getElementById('manageSaleModal');
     const manageSaleModal = new bootstrap.Modal(manageSaleModalEl);
@@ -794,5 +695,4 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     setInterval(updateClock, 1000);
-    updateClock(); // Initial call
-});
+updateClock(); // Initial call
