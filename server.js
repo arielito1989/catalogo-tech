@@ -44,7 +44,7 @@ createTable();
 app.use(express.json({ limit: '50mb' }));
 
 // Serve static files from the public directory
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(process.cwd(), 'public')));
 
 // --- API Endpoints ---
 
