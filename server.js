@@ -11,10 +11,6 @@ const server = http.createServer(app);
 
 // Create a new pool of connections to the database.
 const isProduction = process.env.NODE_ENV === 'production';
-
-// --- DEBUGGING: Log the connection string ---
-console.log('Attempting to connect with POSTGRES_URL:', process.env.POSTGRES_URL);
-
 const pool = new Pool({
     connectionString: process.env.POSTGRES_URL,
     ssl: isProduction ? { rejectUnauthorized: false } : false
