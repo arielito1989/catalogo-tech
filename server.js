@@ -1,6 +1,6 @@
 require('dotenv').config();
 const express = require('express');
-const { Pool } = require('pg');
+const sqlite3 = require('sqlite3').verbose();
 const fetch = require('node-fetch');
 const path = require('path');
 const http = require('http');
@@ -9,48 +9,42 @@ const { Server } = require('socket.io');
 const app = express();
 const server = http.createServer(app);
 
-// Create a new pool of connections to the database.
-const isProduction = process.env.NODE_ENV === 'production';
-const pool = new Pool({
-    connectionString: process.env.POSTGRES_URL,
-    ssl: isProduction ? { rejectUnauthorized: false } : false
+// Connect to SQLite database
+const db = new sqlite3.Database('./catalog.db', (err) => {
+    if (err) {
+        console.error('Error opening database', err.message);
+    } else {
+        console.log('Connected to the SQLite database.');
+        initializeDatabase();
+    }
 });
 
 // Function to create and update the products table schema
-const initializeDatabase = async () => {
-    const client = await pool.connect();
-    try {
-        // Base table creation
-        await client.query(`
+const initializeDatabase = () => {
+    db.serialize(() => {
+        // Base table creation with lowercase, unquoted names for consistency
+        db.run(`
             CREATE TABLE IF NOT EXISTS products (
                 id TEXT PRIMARY KEY,
-                Producto TEXT,
-                CATEGORIA TEXT,
+                producto TEXT,
+                categoria TEXT,
                 "Precio PY" REAL,
                 "Precio al CONTADO" REAL,
-                Imagenes TEXT,
-                en_venta BOOLEAN NOT NULL DEFAULT TRUE,
+                imagenes TEXT,
+                en_venta BOOLEAN NOT NULL DEFAULT 1,
                 plan_pago_elegido TEXT,
-                cuotas_pagadas INTEGER NOT NULL DEFAULT 0
+                cuotas_pagadas INTEGER NOT NULL DEFAULT 0,
+                fecha_inicio_pago DATE
             );
-        `);
-
-        // Add 'fecha_inicio_pago' column if it doesn't exist to avoid errors on existing databases
-        const columnCheck = await client.query("SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'fecha_inicio_pago'");
-        if (columnCheck.rowCount === 0) {
-            await client.query('ALTER TABLE products ADD COLUMN fecha_inicio_pago DATE;');
-            console.log('Column "fecha_inicio_pago" added to products table.');
-        }
-        
-        console.log('Database schema is up to date.');
-    } catch (err) {
-        console.error('Error during database initialization:', err);
-    } finally {
-        client.release();
-    }
+        `, (err) => {
+            if (err) {
+                console.error('Error creating table', err.message);
+            } else {
+                console.log('Products table created or already exists.');
+            }
+        });
+    });
 };
-
-initializeDatabase();
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(process.cwd(), 'public')));
@@ -156,165 +150,146 @@ app.post('/login', (req, res) => {
     }
 });
 
-app.get('/products', async (req, res) => {
-    try {
-        const client = await pool.connect();
-        const result = await client.query('SELECT * FROM products ORDER BY producto ASC');
-        client.release();
-        
-        // Use the mapper for each product to ensure consistent data structure.
-        const products = result.rows.map(mapProductForClient);
+app.get('/products', (req, res) => {
+    db.all('SELECT * FROM products ORDER BY producto ASC', [], (err, rows) => {
+        if (err) {
+            console.error('Error getting products:', err);
+            return res.status(500).json({ error: 'Error fetching products from database.' });
+        }
+        const products = rows.map(mapProductForClient);
         res.json(products);
-    } catch (err) {
-        console.error('Error getting products:', err);
-        res.status(500).json({ error: 'Error fetching products from database.' });
-    }
+    });
 });
 
-app.post('/products', async (req, res) => {
+app.post('/products', (req, res) => {
     const { id, Producto, CATEGORIA, "Precio PY": PrecioPY, "Precio al CONTADO": PrecioContado, Imagenes } = req.body;
-    const query = 'INSERT INTO products (id, producto, categoria, "Precio PY", "Precio al CONTADO", imagenes, en_venta) VALUES ($1, $2, $3, $4, $5, $6, TRUE) RETURNING *';
+    const query = 'INSERT INTO products (id, producto, categoria, "Precio PY", "Precio al CONTADO", imagenes, en_venta) VALUES (?, ?, ?, ?, ?, ?, 1)';
     const values = [id, Producto, CATEGORIA, PrecioPY, PrecioContado, JSON.stringify(Imagenes || [])];
-
-    try {
-        const client = await pool.connect();
-        const result = await client.query(query, values);
-        client.release();
-        
-        // Use the mapper on the newly created product.
-        const newProduct = mapProductForClient(result.rows[0]);
-        res.status(201).json({ message: 'Product added', product: newProduct });
-    } catch (err) {
-        console.error('Error adding product:', err);
-        res.status(500).json({ error: 'Error adding product to database.' });
-    }
+    
+    db.run(query, values, function(err) {
+        if (err) {
+            console.error('Error adding product:', err);
+            return res.status(500).json({ error: 'Error adding product to database.' });
+        }
+        // Get the newly created product and return it
+        db.get('SELECT * FROM products WHERE id = ?', [id], (err, row) => {
+            if (err) {
+                console.error('Error fetching new product:', err);
+                return res.status(500).json({ error: 'Could not fetch the new product.' });
+            }
+            const newProduct = mapProductForClient(row);
+            res.status(201).json({ message: 'Product added', product: newProduct });
+        });
+    });
 });
 
-app.put('/products/:id', async (req, res) => {
+app.put('/products/:id', (req, res) => {
     const { id } = req.params;
     const { Producto, CATEGORIA, "Precio PY": PrecioPY, "Precio al CONTADO": PrecioContado, Imagenes } = req.body;
-    const query = `
-        UPDATE products SET 
-            producto = $1, 
-            categoria = $2, 
-            "Precio PY" = $3, 
-            "Precio al CONTADO" = $4, 
-            imagenes = $5 
-        WHERE id = $6
-        RETURNING *
-    `;
+    const query = `UPDATE products SET producto = ?, categoria = ?, "Precio PY" = ?, "Precio al CONTADO" = ?, imagenes = ? WHERE id = ?`;
     const values = [Producto, CATEGORIA, PrecioPY, PrecioContado, JSON.stringify(Imagenes || []), id];
 
-    try {
-        const client = await pool.connect();
-        const result = await client.query(query, values);
-        client.release();
-
-        if (result.rowCount > 0) {
-            // Use the mapper on the updated product.
-            const updatedProduct = mapProductForClient(result.rows[0]);
+    db.run(query, values, function(err) {
+        if (err) {
+            console.error('Error updating product:', err);
+            return res.status(500).json({ error: 'Error updating product in database.' });
+        }
+        if (this.changes === 0) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+        db.get('SELECT * FROM products WHERE id = ?', [id], (err, row) => {
+            if (err) {
+                console.error('Error fetching updated product:', err);
+                return res.status(500).json({ error: 'Could not fetch the updated product.' });
+            }
+            const updatedProduct = mapProductForClient(row);
             res.json({ message: 'Product updated', product: updatedProduct });
-        } else {
-            res.status(404).json({ error: 'Product not found' });
-        }
-    } catch (err) {
-        console.error('Error updating product:', err);
-        res.status(500).json({ error: 'Error updating product in database.' });
-    }
+        });
+    });
 });
 
-app.delete('/products/:id', async (req, res) => {
+app.delete('/products/:id', (req, res) => {
     const { id } = req.params;
-    const query = 'DELETE FROM products WHERE id = $1';
-
-    try {
-        const client = await pool.connect();
-        const result = await client.query(query, [id]);
-        client.release();
-        if (result.rowCount > 0) {
-            // req.io.emit('productDeleted', id); // Desactivado para evitar polling
-            res.json({ message: 'Product deleted', changes: result.rowCount });
-        } else {
-            res.status(404).json({ error: 'Product not found' });
+    const query = 'DELETE FROM products WHERE id = ?';
+    db.run(query, [id], function(err) {
+        if (err) {
+            console.error('Error deleting product:', err);
+            return res.status(500).json({ error: 'Error deleting product from database.' });
         }
-    } catch (err) {
-        console.error('Error deleting product:', err);
-        res.status(500).json({ error: 'Error deleting product from database.' });
-    }
+        if (this.changes === 0) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+        res.json({ message: 'Product deleted' });
+    });
 });
 
-app.put('/products/:id/status', async (req, res) => {
+app.put('/products/:id/status', (req, res) => {
     const { id } = req.params;
     const { en_venta } = req.body;
-
     if (typeof en_venta !== 'boolean') {
-        return res.status(400).json({ error: 'Invalid en_venta value. It must be a boolean.' });
+        return res.status(400).json({ error: 'Invalid en_venta value.' });
     }
-
-    const query = 'UPDATE products SET en_venta = $1 WHERE id = $2 RETURNING *';
-    const values = [en_venta, id];
-
-    try {
-        const client = await pool.connect();
-        const result = await client.query(query, values);
-        client.release();
-
-        if (result.rowCount > 0) {
-            // Use the mapper on the updated product.
-            const updatedProduct = mapProductForClient(result.rows[0]);
-            res.json({ message: 'Product status updated', product: updatedProduct });
-        } else {
-            res.status(404).json({ error: 'Product not found' });
+    const query = 'UPDATE products SET en_venta = ? WHERE id = ?';
+    db.run(query, [en_venta ? 1 : 0, id], function(err) {
+        if (err) {
+            console.error('Error updating product status:', err);
+            return res.status(500).json({ error: 'Error updating product status.' });
         }
-    } catch (err) {
-        console.error('Error updating product status:', err);
-        res.status(500).json({ error: 'Error updating product status in database.' });
-    }
+        if (this.changes === 0) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+        db.get('SELECT * FROM products WHERE id = ?', [id], (err, row) => {
+            if (err) {
+                console.error('Error fetching updated product:', err);
+                return res.status(500).json({ error: 'Could not fetch the updated product.' });
+            }
+            res.json(mapProductForClient(row));
+        });
+    });
 });
 
-app.put('/products/:id/sale', async (req, res) => {
+app.put('/products/:id/sale', (req, res) => {
     const { id } = req.params;
     const { en_venta, plan_pago_elegido, cuotas_pagadas, fecha_inicio_pago } = req.body;
-
+    
     const fields = [];
     const values = [];
     
     const addField = (name, value) => {
         if (value !== undefined) {
+            fields.push(`${name} = ?`);
             values.push(value);
-            fields.push(`${name} = ${values.length}`);
         }
     };
 
-    addField('en_venta', en_venta);
+    addField('en_venta', en_venta === undefined ? undefined : (en_venta ? 1 : 0));
     addField('plan_pago_elegido', plan_pago_elegido);
     addField('cuotas_pagadas', cuotas_pagadas);
-    // Ensure null is saved if date is cleared, not an empty string
     addField('fecha_inicio_pago', fecha_inicio_pago || null);
 
     if (fields.length === 0) {
-        return res.status(400).json({ error: 'No fields to update provided.' });
+        return res.status(400).json({ error: 'No fields to update.' });
     }
 
-    const query = `UPDATE products SET ${fields.join(', ')} WHERE id = ${values.length + 1} RETURNING *`;
     values.push(id);
+    const query = `UPDATE products SET ${fields.join(', ')} WHERE id = ?`;
 
-    try {
-        const client = await pool.connect();
-        const result = await client.query(query, values);
-        client.release();
-
-        if (result.rowCount > 0) {
-            // Use the mapper on the updated product.
-            const updatedProduct = mapProductForClient(result.rows[0]);
-            res.json({ message: 'Product sale data updated', product: updatedProduct });
-        } else {
-            res.status(404).json({ error: 'Product not found' });
+    db.run(query, values, function(err) {
+        if (err) {
+            console.error('Error updating sale data:', err);
+            return res.status(500).json({ error: 'Error updating sale data.' });
         }
-    } catch (err) {
-        console.error('Error updating product sale data:', err);
-        res.status(500).json({ error: 'Error updating product sale data in database.' });
-    }
+        if (this.changes === 0) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+        db.get('SELECT * FROM products WHERE id = ?', [id], (err, row) => {
+            if (err) {
+                console.error('Error fetching updated product:', err);
+                return res.status(500).json({ error: 'Could not fetch the updated product.' });
+            }
+            res.json(mapProductForClient(row));
+        });
+    });
 });
 
 // This is the crucial part for Vercel.
