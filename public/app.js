@@ -344,6 +344,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const productImageInput = document.getElementById('productImages');
         const files = productImageInput.files;
 
+        // Gather data from form fields
+        const productData = {
+            Producto: document.getElementById('productName').value,
+            CATEGORIA: document.getElementById('productCategory').value,
+            "Precio al CONTADO": parseFloat(document.getElementById('productPriceContado').value) || 0,
+            "Precio PY": parseFloat(document.getElementById('productPricePY').value) || 0,
+            // en_venta will be handled by the server on creation
+        };
+
         const saveProduct = async (imagesArray) => {
             const method = currentlyEditingId ? 'PUT' : 'POST';
             const url = currentlyEditingId ? `/products/${currentlyEditingId}` : '/products';

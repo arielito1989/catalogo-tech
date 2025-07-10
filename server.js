@@ -212,6 +212,37 @@ app.delete('/products/:id', async (req, res) => {
     }
 });
 
+app.put('/products/:id/status', async (req, res) => {
+    const { id } = req.params;
+    const { en_venta } = req.body;
+
+    if (typeof en_venta !== 'boolean') {
+        return res.status(400).json({ error: 'Invalid en_venta value. It must be a boolean.' });
+    }
+
+    const query = 'UPDATE products SET en_venta = $1 WHERE id = $2 RETURNING *';
+    const values = [en_venta, id];
+
+    try {
+        const client = await pool.connect();
+        const result = await client.query(query, values);
+        client.release();
+
+        if (result.rowCount > 0) {
+            const updatedProduct = {
+                ...result.rows[0],
+                Imagenes: result.rows[0].imagenes ? JSON.parse(result.rows[0].imagenes) : []
+            };
+            res.json({ message: 'Product status updated', product: updatedProduct });
+        } else {
+            res.status(404).json({ error: 'Product not found' });
+        }
+    } catch (err) {
+        console.error('Error updating product status:', err);
+        res.status(500).json({ error: 'Error updating product status in database.' });
+    }
+});
+
 app.put('/products/:id/sale', async (req, res) => {
     const { id } = req.params;
     const { en_venta, plan_pago_elegido, cuotas_pagadas } = req.body;
@@ -222,16 +253,16 @@ app.put('/products/:id/sale', async (req, res) => {
     let query = 'UPDATE products SET ';
 
     if (en_venta !== undefined) {
-        fields.push(`en_venta = ${values.length + 1}`);
         values.push(en_venta);
+        fields.push(`en_venta = ${values.length}`);
     }
     if (plan_pago_elegido !== undefined) {
-        fields.push(`plan_pago_elegido = ${values.length + 1}`);
         values.push(plan_pago_elegido);
+        fields.push(`plan_pago_elegido = ${values.length}`);
     }
     if (cuotas_pagadas !== undefined) {
-        fields.push(`cuotas_pagadas = ${values.length + 1}`);
         values.push(cuotas_pagadas);
+        fields.push(`cuotas_pagadas = ${values.length}`);
     }
 
     if (fields.length === 0) {
@@ -239,8 +270,9 @@ app.put('/products/:id/sale', async (req, res) => {
     }
 
     query += fields.join(', ');
-    query += ` WHERE id = ${values.length + 1} RETURNING *`;
     values.push(id);
+    query += ` WHERE id = ${values.length} RETURNING *`;
+
 
     try {
         const client = await pool.connect();
