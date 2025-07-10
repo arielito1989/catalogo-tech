@@ -4,7 +4,6 @@ const sqlite3 = require('sqlite3').verbose();
 const fetch = require('node-fetch');
 const path = require('path');
 const http = require('http');
-const { Server } = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
@@ -22,7 +21,6 @@ const db = new sqlite3.Database('./catalog.db', (err) => {
 // Function to create and update the products table schema
 const initializeDatabase = () => {
     db.serialize(() => {
-        // Base table creation with lowercase, unquoted names for consistency
         db.run(`
             CREATE TABLE IF NOT EXISTS products (
                 id TEXT PRIMARY KEY,
@@ -39,8 +37,6 @@ const initializeDatabase = () => {
         `, (err) => {
             if (err) {
                 console.error('Error creating table', err.message);
-            } else {
-                console.log('Products table created or already exists.');
             }
         });
     });
@@ -49,55 +45,28 @@ const initializeDatabase = () => {
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(process.cwd(), 'public')));
 
-// --- Socket.IO Vercel-compatible setup ---
-const io = new Server(server, {
-    transports: ['polling'],
-    cors: { origin: "*", methods: ["GET", "POST"] },
-    cookie: false
-});
-
-io.on('connection', (socket) => {
-    console.log('A user connected via polling');
-    socket.on('disconnect', () => {
-        console.log('User disconnected');
-    });
-});
-
-// Middleware to attach io to the request object
-app.use((req, res, next) => {
-    req.io = io;
-    next();
-});
-
 // A centralized function to map database rows to the client-side product structure.
-// This ensures consistency and safety, especially with JSON parsing.
 const mapProductForClient = (row) => {
     if (!row) return null;
-
     let imagenes = [];
     if (row.imagenes) {
         try {
-            // Attempt to parse the JSON string from the database.
             const parsed = JSON.parse(row.imagenes);
-            // Ensure the result is an array before assigning it.
             if (Array.isArray(parsed)) {
                 imagenes = parsed;
             }
         } catch (e) {
-            // If parsing fails, log the error and default to an empty array.
             console.error(`Error parsing Imagenes JSON for product id ${row.id}:`, row.imagenes);
         }
     }
-
-    // Return a consistently structured product object.
     return {
         id: row.id,
-        Producto: row.producto, // Map from db's 'producto' to client's 'Producto'
-        CATEGORIA: row.categoria, // Map from db's 'categoria' to client's 'CATEGORIA'
+        Producto: row.producto,
+        CATEGORIA: row.categoria,
         'Precio PY': row['Precio PY'],
         'Precio al CONTADO': row['Precio al CONTADO'],
-        Imagenes: imagenes, // The safely parsed array of images.
-        en_venta: row.en_venta,
+        Imagenes: imagenes,
+        en_venta: !!row.en_venta, // Convert 0/1 to boolean
         plan_pago_elegido: row.plan_pago_elegido,
         cuotas_pagadas: row.cuotas_pagadas,
         fecha_inicio_pago: row.fecha_inicio_pago,
@@ -106,14 +75,8 @@ const mapProductForClient = (row) => {
 
 // --- API Endpoints ---
 
-let exchangeRateCache = { value: null, timestamp: null };
-const CACHE_DURATION = 12 * 60 * 60 * 1000; // 12 hours in milliseconds
-
 app.get('/api/exchange-rate', async (req, res) => {
     try {
-        if (exchangeRateCache.value && (Date.now() - exchangeRateCache.timestamp < CACHE_DURATION)) {
-            return res.json({ rates: { ARS: exchangeRateCache.value } });
-        }
         const apiKey = process.env.EXGENERATE_API_KEY;
         if (!apiKey) {
             return res.status(500).json({ error: 'Server configuration error: API key not set.' });
@@ -124,8 +87,6 @@ app.get('/api/exchange-rate', async (req, res) => {
         if (data.result === 'error') {
             return res.status(400).json({ error: `Exchange rate API error: ${data['error-type']}` });
         }
-        exchangeRateCache.value = data.conversion_rate;
-        exchangeRateCache.timestamp = Date.now();
         res.json({ rates: { ARS: data.conversion_rate } });
     } catch (error) {
         console.error('Unexpected error in /api/exchange-rate:', error);
@@ -171,7 +132,6 @@ app.post('/products', (req, res) => {
             console.error('Error adding product:', err);
             return res.status(500).json({ error: 'Error adding product to database.' });
         }
-        // Get the newly created product and return it
         db.get('SELECT * FROM products WHERE id = ?', [id], (err, row) => {
             if (err) {
                 console.error('Error fetching new product:', err);
