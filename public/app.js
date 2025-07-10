@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const socket = io({ 
-        transports: ['polling']
-    }); // Force polling for Vercel compatibility
+    // const socket = io({ 
+    //     transports: ['polling']
+    // }); // Desactivado para evitar polling
 
     const loginContainer = document.getElementById('login-container');
     const mainContent = document.getElementById('main-content');

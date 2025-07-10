@@ -200,7 +200,7 @@ app.delete('/products/:id', async (req, res) => {
         const result = await client.query(query, [id]);
         client.release();
         if (result.rowCount > 0) {
-            req.io.emit('productDeleted', id);
+            // req.io.emit('productDeleted', id); // Desactivado para evitar polling
             res.json({ message: 'Product deleted', changes: result.rowCount });
         } else {
             res.status(404).json({ error: 'Product not found' });
