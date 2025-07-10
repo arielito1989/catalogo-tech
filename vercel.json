@@ -4,9 +4,9 @@
     { "src": "server.js", "use": "@vercel/node" }
   ],
   "routes": [
+    { "handle": "filesystem" },
     { "src": "/api/(.*)", "dest": "server.js" },
     { "src": "/products(.*)", "dest": "server.js" },
-    { "src": "/login", "dest": "server.js" },
-    { "handle": "filesystem" }
+    { "src": "/login", "dest": "server.js" }
   ]
 }
