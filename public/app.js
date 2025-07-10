@@ -1,7 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // const socket = io({ 
-    //     transports: ['polling']
-    // }); // Desactivado para evitar polling
+    
 
     const loginContainer = document.getElementById('login-container');
     const mainContent = document.getElementById('main-content');
@@ -105,23 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
         loadProducts();
     }
 
-    // --- Socket.IO Event Listeners ---
-    socket.on('productAdded', (product) => {
-        console.log('Product added via Socket.IO:', product);
-        loadProducts(); // Reload all products
-    });
-
-    socket.on('productUpdated', (product) => {
-        console.log('Product updated via Socket.IO:', product);
-        loadProducts(); // Reload all products
-    });
-
-    socket.on('productDeleted', (productId) => {
-        console.log('Product deleted via Socket.IO:', productId);
-        loadProducts(); // Reload all products
-    });
-
-    // --- DATA HANDLING --- //
+    // --- MANEJO DE DATOS --- //
     async function loadProducts() {
         try {
             const response = await fetch('/products');
@@ -133,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    let filteredAndSortedProducts = [];
+    
 
     function applyFiltersAndSort() {
         let tempProducts = [...products];
