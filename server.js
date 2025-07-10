@@ -65,8 +65,17 @@ app.use((req, res, next) => {
 
 // --- API Endpoints ---
 
+let exchangeRateCache = { value: null, timestamp: null };
+const CACHE_DURATION = 12 * 60 * 60 * 1000; // 12 hours in milliseconds
+
 app.get('/api/exchange-rate', async (req, res) => {
     try {
+        // Check if rate is in cache and not expired
+        if (exchangeRateCache.value && (Date.now() - exchangeRateCache.timestamp < CACHE_DURATION)) {
+            console.log('Serving exchange rate from cache.');
+            return res.json({ rates: { ARS: exchangeRateCache.value } });
+        }
+
         const apiKey = process.env.EXGENERATE_API_KEY;
         if (!apiKey) {
             return res.status(500).json({ error: 'Server configuration error: API key not set.' });
@@ -78,6 +87,11 @@ app.get('/api/exchange-rate', async (req, res) => {
         if (data.result === 'error') {
             return res.status(400).json({ error: `Exchange rate API error: ${data['error-type']}` });
         }
+
+        // Update cache
+        exchangeRateCache.value = data.conversion_rate;
+        exchangeRateCache.timestamp = Date.now();
+        console.log('Fetched new exchange rate and updated cache.');
 
         res.json({ rates: { ARS: data.conversion_rate } });
     } catch (error) {
