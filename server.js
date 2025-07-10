@@ -42,6 +42,11 @@ createTable();
 // Middleware to parse JSON bodies
 app.use(express.json({ limit: '50mb' }));
 
+// Route for the home page
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 // --- API Endpoints ---
 
 // Exchange rate endpoint
