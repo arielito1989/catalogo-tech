@@ -770,7 +770,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const paymentDateValue = paidRecord ? paidRecord.payment_date : '';
 
                 // Determine if the checkbox should be disabled
-                const isDisabled = (i !== nextInstallmentToPay && !paidRecord) || (i > nextInstallmentToPay && !paidRecord);
+                const isDisabled = paidRecord || (i !== nextInstallmentToPay);
                 const isChecked = paidRecord ? 'checked' : '';
                 const dateInputDisabled = !paidRecord ? 'disabled' : '';
 
