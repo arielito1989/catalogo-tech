@@ -195,6 +195,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 row.classList.add(rowClass);
                 const imageUrl = product.Imagenes && product.Imagenes.length > 0 ? product.Imagenes[0] : '/images/placeholder.png';
+                let statusHtml = ''; // Initialize statusHtml here
+
+                if (!product.en_venta) {
+                    rowClass = 'product-sold'; // Rojo
+                    statusHtml = '<span class="badge bg-danger">Vendido (Al contado)</span>';
+                } else if (product.plan_pago_elegido) {
+                    rowClass = 'product-in-plan'; // Naranja
                     const plans = [
                         { months: 3, interest: 0.50, name: 'Plan 3 Cuotas' },
                         { months: 6, interest: 1.00, name: 'Plan 6 Cuotas' },
@@ -237,7 +244,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             <br>Próx. Venc: ${nextDueDate}
                         </span>
                     `;
+                } else {
+                    rowClass = 'product-available'; // Verde
                 }
+                row.classList.add(rowClass);
 
                 const actionsHtml = `
                     <button class="btn btn-sm btn-info manage-sale" data-id="${product.id}" title="Gestionar Venta">
