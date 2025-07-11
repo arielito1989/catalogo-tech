@@ -241,6 +241,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button class="btn btn-sm btn-info manage-sale" data-id="${product.id}" title="Gestionar Venta">
                         <i class="fas fa-dolly"></i> Gestionar
                     </button>
+                    <button class="btn btn-sm btn-primary view-payment-summary" data-id="${product.id}" title="Ver Resumen de Pago">
+                        <i class="fas fa-money-check-alt"></i> Resumen
+                    </button>
                     <div class="form-check form-switch mt-2">
                         <input class="form-check-input toggle-en-venta" type="checkbox" role="switch" id="toggle-${product.id}" data-id="${product.id}" ${product.en_venta ? 'checked' : ''}>
                         <label class="form-check-label" for="toggle-${product.id}">En Venta</label>
@@ -493,6 +496,8 @@ document.addEventListener('DOMContentLoaded', () => {
             handleDelete(productId);
         } else if (button.classList.contains('manage-sale')) {
             openManageSaleModal(productId);
+        } else if (button.classList.contains('view-payment-summary')) {
+            showPaymentSummary(productId);
         }
     });
 
@@ -657,6 +662,73 @@ document.addEventListener('DOMContentLoaded', () => {
         detailsModalTitle.textContent = `Planes de Pago: ${product.Producto}`;
         detailsModalBody.innerHTML = getPaymentPlanHtml(product);
         detailsModal.show();
+    }
+
+    function showPaymentPlan(product) {
+        detailsModalTitle.textContent = `Planes de Pago: ${product.Producto}`;
+        detailsModalBody.innerHTML = getPaymentPlanHtml(product);
+        detailsModal.show();
+    }
+
+    function showPaymentSummary(productId) {
+        const product = products.find(p => p.id === productId);
+        if (!product) return;
+
+        if (!product.plan_pago_elegido) {
+            toastHeader.querySelector('small').textContent = 'Ahora';
+            toastHeader.classList.remove('text-bg-success');
+            toastHeader.classList.add('text-bg-danger');
+            toastLiveExample.classList.remove('text-bg-success');
+            toastLiveExample.classList.add('text-bg-danger');
+            toastBody.innerHTML = `El producto ${product.Producto} no tiene un plan de pago asociado.`;
+            toastBootstrap.show();
+            return;
+        }
+
+        const plans = [
+            { months: 3, interest: 0.50, name: 'Plan 3 Cuotas' },
+            { months: 6, interest: 1.00, name: 'Plan 6 Cuotas' },
+            { months: 9, interest: 1.50, name: 'Plan 9 Cuotas' },
+            { months: 12, interest: 2.00, name: 'Plan Exclusivo' }
+        ];
+        const selectedPlan = plans.find(p => p.name === product.plan_pago_elegido);
+
+        if (!selectedPlan) {
+            toastHeader.querySelector('small').textContent = 'Ahora';
+            toastHeader.classList.remove('text-bg-success');
+            toastHeader.classList.add('text-bg-danger');
+            toastLiveExample.classList.remove('text-bg-success');
+            toastLiveExample.classList.add('text-bg-danger');
+            toastBody.innerHTML = `No se encontró información del plan para ${product.plan_pago_elegido}.`;
+            toastBootstrap.show();
+            return;
+        }
+
+        const priceContado = parseFloat(product['Precio al CONTADO']);
+        const finalPrice = priceContado * (1 + selectedPlan.interest);
+        const installmentValue = finalPrice / selectedPlan.months;
+        const installmentValueArs = installmentValue * usdToArsRate;
+
+        const pagosRealizados = product.pagos_realizados || [];
+        const cuotasPagadasCount = pagosRealizados.length;
+        const cuotasRestantes = selectedPlan.months - cuotasPagadasCount;
+
+        const montoRestanteTotalArs = cuotasRestantes * installmentValueArs;
+
+        toastHeader.querySelector('small').textContent = 'Ahora';
+        toastHeader.classList.remove('text-bg-danger');
+        toastHeader.classList.add('text-bg-success');
+        toastLiveExample.classList.remove('text-bg-danger');
+        toastLiveExample.classList.add('text-bg-success');
+        toastBody.innerHTML = `
+            <strong>Resumen de Pago: ${product.Producto}</strong><br><br>
+            <strong>Plan:</strong> ${selectedPlan.name}<br>
+            <strong>Cuotas pagadas:</strong> ${cuotasPagadasCount}<br>
+            <strong>Cuotas restantes:</strong> ${cuotasRestantes}<br>
+            <strong>Monto restante total:</strong> <span class="text-success">${montoRestanteTotalArs.toFixed(2)} ARS</span><br>
+            <strong>Valor por cuota:</strong> ${installmentValueArs.toFixed(2)} ARS
+        `;
+        toastBootstrap.show();
     }
 
     function getPaymentPlanHtml(product) {
