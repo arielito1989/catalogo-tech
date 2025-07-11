@@ -1,21 +1,21 @@
 
-/* Ghibli-inspired Light Theme status colors */
+/* Vibrant Light Theme status colors */
 .product-available td {
-    background-color: #dcedc8; /* Light Prairie Green */
+    background-color: #c8e6c9; /* Bright Green */
 }
 [data-bs-theme="dark"] .product-available td {
     background-color: #1e4d2b;
 }
 
 .product-in-plan td {
-    background-color: #fff9c4; /* Pale Sunflower Yellow */
+    background-color: #ffecb3; /* Intense Amber */
 }
 [data-bs-theme="dark"] .product-in-plan td {
     background-color: #664d03;
 }
 
 .product-sold td {
-    background-color: #ffccbc; /* Soft Clay/Stone */
+    background-color: #ffcdd2; /* Soft Red */
     text-decoration: line-through;
     opacity: 0.7;
 }
@@ -37,10 +37,6 @@
 body {
     font-family: 'Poppins', sans-serif;
     transition: background-color 0.3s, color 0.3s;
-}
-
-[data-bs-theme="light"] body {
-    background: linear-gradient(180deg, #e0f7fa 0%, #ffffff 100%);
 }
 
 /* Theme Toggle Icon */
