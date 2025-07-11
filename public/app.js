@@ -187,10 +187,28 @@ document.addEventListener('DOMContentLoaded', () => {
                     statusHtml = '<span class="badge bg-danger">Vendido (Al contado)</span>';
                 } else if (product.plan_pago_elegido) {
                     row.classList.add('product-in-plan');
+                    const plans = [
+                        { months: 3, interest: 0.50, name: 'Plan 3 Cuotas' },
+                        { months: 6, interest: 1.00, name: 'Plan 6 Cuotas' },
+                        { months: 9, interest: 1.50, name: 'Plan 9 Cuotas' },
+                        { months: 12, interest: 2.00, name: 'Plan Exclusivo' }
+                    ];
+                    const selectedPlan = plans.find(p => p.name === product.plan_pago_elegido);
+
                     const startDate = new Date(product.fecha_inicio_pago + 'T00:00:00');
                     const nextDueDate = new Date(startDate);
                     nextDueDate.setMonth(startDate.getMonth() + (product.cuotas_pagadas || 0) + 1);
-                    statusHtml = `<span class="badge bg-warning text-dark">${product.plan_pago_elegido} - Próx. Venc: ${nextDueDate.toLocaleDateString('es-AR')}</span>`;
+
+                    const totalInstallments = selectedPlan ? selectedPlan.months : 0;
+                    const remainingInstallments = totalInstallments - (product.cuotas_pagadas || 0);
+
+                    statusHtml = `
+                        <span class="badge bg-warning text-dark">
+                            ${product.plan_pago_elegido}
+                            <br>Cuotas restantes: ${remainingInstallments > 0 ? remainingInstallments : 0}
+                            <br>Próx. Venc: ${remainingInstallments > 0 ? nextDueDate.toLocaleDateString('es-AR') : 'Plan completado'}
+                        </span>
+                    `;
                 }
 
                 const actionsHtml = `
