@@ -1,5 +1,28 @@
 
+.product-available td {
+    background-color: #d4edda; /* Verde claro para tema claro */
+}
+
+[data-bs-theme="dark"] .product-available td {
+    background-color: #1e4d2b; /* Verde oscuro para tema oscuro */
+}
+
+.product-in-plan td {
+    background-color: #ffeeba; /* Naranja claro para tema claro */
+}
+
+[data-bs-theme="dark"] .product-in-plan td {
+    background-color: #664d03; /* Naranja oscuro para tema oscuro */
+}
+
 .product-sold td {
+    background-color: #f8d7da; /* Rojo claro para tema claro */
+    text-decoration: line-through;
+    opacity: 0.6;
+}
+
+[data-bs-theme="dark"] .product-sold td {
+    background-color: #58151c; /* Rojo oscuro para tema oscuro */
     text-decoration: line-through;
     opacity: 0.6;
 }
@@ -10,14 +33,6 @@
 
 .product-sold .badge {
     text-decoration: none !important; /* Ensure badge text is not struck through */
-}
-
-.product-in-plan td {
-    background-color: #ffeadb; /* Naranja más intenso para tema claro */
-}
-
-[data-bs-theme="dark"] .product-in-plan td {
-    background-color: #8c5a38; /* Naranja más oscuro para tema oscuro */
 }
 
 /* General Body Styles */

@@ -185,14 +185,16 @@ document.addEventListener('DOMContentLoaded', () => {
             productsToRender.forEach(product => {
                 const priceArs = (parseFloat(product['Precio al CONTADO']) * usdToArsRate).toFixed(2);
                 const row = document.createElement('tr');
-                const imageUrl = product.Imagenes && product.Imagenes.length > 0 ? product.Imagenes[0] : '/images/placeholder.png';
-                
-                let statusHtml = '';
+                let rowClass = '';
                 if (!product.en_venta) {
-                    row.classList.add('product-sold');
-                    statusHtml = '<span class="badge bg-danger">Vendido (Al contado)</span>';
+                    rowClass = 'product-sold'; // Rojo
                 } else if (product.plan_pago_elegido) {
-                    row.classList.add('product-in-plan');
+                    rowClass = 'product-in-plan'; // Naranja
+                } else {
+                    rowClass = 'product-available'; // Verde
+                }
+                row.classList.add(rowClass);
+                const imageUrl = product.Imagenes && product.Imagenes.length > 0 ? product.Imagenes[0] : '/images/placeholder.png';
                     const plans = [
                         { months: 3, interest: 0.50, name: 'Plan 3 Cuotas' },
                         { months: 6, interest: 1.00, name: 'Plan 6 Cuotas' },
@@ -735,7 +737,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const priceContado = parseFloat(product['Precio al CONTADO']);
         const finalPrice = priceContado * (1 + selectedPlan.interest);
         const installmentValue = finalPrice / selectedPlan.months;
-        const installmentValueArs = installmentValue * usdToArsRate;
+        const installmentValueArs = installmentValue * (product.exchange_rate_at_sale || usdToArsRate);
 
         const pagosRealizados = product.pagos_realizados || [];
         const cuotasPagadasCount = pagosRealizados.length;
@@ -875,8 +877,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const finalPrice = priceContado * (1 + selectedPlan.interest);
             const installmentValue = finalPrice / selectedPlan.months;
-            const installmentValueArs = (installmentValue * usdToArsRate).toFixed(2);
-            const finalPriceArs = (finalPrice * usdToArsRate).toFixed(2);
+            const installmentValueArs = (installmentValue * (product.exchange_rate_at_sale || usdToArsRate)).toFixed(2);
+            const finalPriceArs = (finalPrice * (product.exchange_rate_at_sale || usdToArsRate)).toFixed(2);
 
             let trackerHtml = `
                 <h5>Seguimiento de Cuotas (${selectedPlan.months} cuotas)</h5>

@@ -35,7 +35,8 @@ const initializeDatabase = async () => {
             { name: 'cuotas_pagadas', type: 'INTEGER NOT NULL DEFAULT 0' },
             { name: 'fecha_inicio_pago', type: 'DATE' },
             { name: 'valor_cuota_ars', type: 'REAL' }, // Nueva columna para el valor fijo
-            { name: 'pagos_realizados', type: 'TEXT' } // Nueva columna para el array de pagos realizados
+            { name: 'pagos_realizados', type: 'TEXT' }, // Nueva columna para el array de pagos realizados
+            { name: 'exchange_rate_at_sale', type: 'REAL' } // Nueva columna para el tipo de cambio al momento de la venta
         ];
 
         for (const col of columns) {
@@ -97,7 +98,8 @@ const mapProductForClient = (row) => {
         cuotas_pagadas: row.cuotas_pagadas,
         fecha_inicio_pago: row.fecha_inicio_pago,
         valor_cuota_ars: row.valor_cuota_ars,
-        pagos_realizados: pagosRealizados
+        pagos_realizados: pagosRealizados,
+        exchange_rate_at_sale: row.exchange_rate_at_sale // Incluir el nuevo campo
     };
 };
 
@@ -230,7 +232,7 @@ app.put('/products/:id/status', async (req, res) => {
 
 app.put('/products/:id/sale', async (req, res) => {
     const { id } = req.params;
-    const { plan_pago_elegido, fecha_inicio_pago, valor_cuota_ars, pagos_realizados } = req.body;
+    const { plan_pago_elegido, fecha_inicio_pago, pagos_realizados } = req.body;
 
     const num_cuotas_pagadas = (pagos_realizados && Array.isArray(pagos_realizados)) ? pagos_realizados.length : 0;
     const pagos_realizados_json = (pagos_realizados && Array.isArray(pagos_realizados)) ? JSON.stringify(pagos_realizados) : null;
@@ -239,7 +241,7 @@ app.put('/products/:id/sale', async (req, res) => {
     try {
         client = await pool.connect();
 
-        // Fetch the current product to get total installments
+        // Fetch the current product to get total installments and existing exchange rate
         const currentProductResult = await client.query('SELECT * FROM products WHERE id = $1', [id]);
         if (currentProductResult.rowCount === 0) {
             return res.status(404).json({ error: 'Product not found' });
@@ -259,6 +261,27 @@ app.put('/products/:id/sale', async (req, res) => {
             enVentaStatus = false; // Mark as sold if all installments are paid
         }
 
+        let exchangeRateAtSale = currentProduct.exchange_rate_at_sale; // Use existing rate if available
+        let valorCuotaArs = currentProduct.valor_cuota_ars; // Use existing value if available
+
+        // If a new plan is being set or exchange rate is not yet recorded, fetch and set it
+        if (plan_pago_elegido && !exchangeRateAtSale) {
+            const apiKey = process.env.EXGENERATE_API_KEY;
+            const url = `https://v6.exchangerate-api.com/v6/${apiKey}/pair/USD/ARS`;
+            const apiResponse = await fetch(url);
+            const data = await apiResponse.json();
+            if (data.result === 'error') {
+                console.error(`Exchange rate API error: ${data['error-type']}`);
+                // Proceed without exchange rate if API fails, or return an error
+                // For now, we'll proceed, but a more robust solution might return an error.
+            } else {
+                exchangeRateAtSale = data.conversion_rate;
+                const priceContado = parseFloat(currentProduct['Precio al CONTADO']);
+                const finalPrice = priceContado * (1 + selectedPlan.interest);
+                valorCuotaArs = (finalPrice / selectedPlan.months) * exchangeRateAtSale;
+            }
+        }
+
         const query = `
             UPDATE products 
             SET 
@@ -267,17 +290,19 @@ app.put('/products/:id/sale', async (req, res) => {
                 fecha_inicio_pago = $3,
                 valor_cuota_ars = $4,
                 pagos_realizados = $5,
-                en_venta = $6
-            WHERE id = $7
+                en_venta = $6,
+                exchange_rate_at_sale = $7
+            WHERE id = $8
             RETURNING *`;
 
         const values = [
             plan_pago_elegido,
             num_cuotas_pagadas,
             fecha_inicio_pago || null,
-            valor_cuota_ars,
+            valorCuotaArs,
             pagos_realizados_json,
             enVentaStatus,
+            exchangeRateAtSale,
             id
         ];
 
