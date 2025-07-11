@@ -746,6 +746,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Ensure product.pagos_realizados is an array
             const pagosRealizados = product.pagos_realizados || [];
+            // Sort pagosRealizados by installment_number to easily find the last paid one
+            pagosRealizados.sort((a, b) => a.installment_number - b.installment_number);
+            const lastPaidInstallment = pagosRealizados.length > 0 ? pagosRealizados[pagosRealizados.length - 1].installment_number : 0;
+            const nextInstallmentToPay = lastPaidInstallment + 1;
 
             for (let i = 1; i <= selectedPlan.months; i++) {
                 const dueDate = new Date(startDate);
@@ -765,17 +769,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 const paidRecord = pagosRealizados.find(p => p.installment_number === i);
                 const paymentDateValue = paidRecord ? paidRecord.payment_date : '';
 
+                // Determine if the checkbox should be disabled
+                const isDisabled = (i !== nextInstallmentToPay && !paidRecord) || (i > nextInstallmentToPay && !paidRecord);
+                const isChecked = paidRecord ? 'checked' : '';
+                const dateInputDisabled = !paidRecord ? 'disabled' : '';
+
                 trackerHtml += `
                     <div class="mb-3 border p-2 rounded">
                         <div class="form-check">
-                            <input class="form-check-input installment-paid-checkbox" type="checkbox" value="${i}" id="inst-paid-${i}" ${paidRecord ? 'checked' : ''}>
+                            <input class="form-check-input installment-paid-checkbox" type="checkbox" value="${i}" id="inst-paid-${i}" ${isChecked} ${isDisabled ? 'disabled' : ''}>
                             <label class="form-check-label" for="inst-paid-${i}">
                                 Cuota ${i} (Vence: ${formattedDueDate})
                             </label>
                         </div>
                         <div class="mt-2">
                             <label for="inst-payment-date-${i}" class="form-label">Fecha de Pago Real:</label>
-                            <input type="date" class="form-control installment-payment-date" id="inst-payment-date-${i}" data-installment-number="${i}" value="${paymentDateValue}" ${!paidRecord ? 'disabled' : ''}>
+                            <input type="date" class="form-control installment-payment-date" id="inst-payment-date-${i}" data-installment-number="${i}" value="${paymentDateValue}" ${dateInputDisabled}>
                         </div>
                     </div>
                 `;
@@ -785,7 +794,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Add event listeners for checkboxes to enable/disable date inputs
             currentTrackerDiv.querySelectorAll('.installment-paid-checkbox').forEach(checkbox => {
                 checkbox.addEventListener('change', (event) => {
-                    const installmentNumber = event.target.value;
+                    const installmentNumber = parseInt(event.target.value);
                     const dateInput = currentTrackerDiv.querySelector(`#inst-payment-date-${installmentNumber}`);
                     if (event.target.checked) {
                         dateInput.disabled = false;
