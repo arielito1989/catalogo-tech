@@ -201,18 +201,24 @@ app.put('/products/:id/sale', async (req, res) => {
     const { id } = req.params;
     const { plan_pago_elegido, cuotas_pagadas, fecha_inicio_pago } = req.body;
 
+    // Asegurarse de que cuotas_pagadas es un número entero.
+    const num_cuotas_pagadas = parseInt(cuotas_pagadas, 10);
+    if (isNaN(num_cuotas_pagadas)) {
+        return res.status(400).json({ error: 'Valor inválido para cuotas_pagadas.' });
+    }
+
     const query = `
         UPDATE products 
         SET 
             plan_pago_elegido = $1, 
-            cuotas_pagadas = $2, 
+            cuotas_pagadas = $2::integer, 
             fecha_inicio_pago = $3
         WHERE id = $4
         RETURNING *`;
 
     const values = [
         plan_pago_elegido,
-        cuotas_pagadas,
+        num_cuotas_pagadas,
         fecha_inicio_pago || null,
         id
     ];
