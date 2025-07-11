@@ -647,6 +647,7 @@ document.addEventListener('DOMContentLoaded', () => {
             planOptionsHtml += `<option value="${plan.name}" ${product.plan_pago_elegido === plan.name ? 'selected' : ''}>${plan.name}</option>`;
         });
 
+        // Se deshabilita temporalmente el seguimiento de cuotas para depurar el error 500.
         manageSaleModalBody.innerHTML = `
             <div class="mb-3">
                 <label for="sale-start-date" class="form-label">Fecha de Inicio de Pago</label>
@@ -660,45 +661,20 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             <div id="installments-tracker"></div>
         `;
-
+        
+        // La lógica del seguimiento de cuotas se ha eliminado temporalmente.
+        // Al guardar, las cuotas pagadas se establecerán en 0 si se elige un plan.
         const planSelect = document.getElementById('sale-plan-select');
         const trackerDiv = document.getElementById('installments-tracker');
-        const startDateInput = document.getElementById('sale-start-date');
-        console.log('startDateInput en openManageSaleModal:', startDateInput); // Para depuración
 
-        function renderInstallmentTracker(currentPlanSelect, currentTrackerDiv, currentStartDateInput) {
-            const selectedPlanName = currentPlanSelect.value;
-            const selectedPlan = plans.find(p => p.name === selectedPlanName);
-            
-            if (!selectedPlan) { // Contado
-                currentTrackerDiv.innerHTML = '';
-                return;
+        planSelect.addEventListener('change', () => {
+            if (planSelect.value) {
+                trackerDiv.innerHTML = '<p class="text-muted"><i>El seguimiento de cuotas está deshabilitado temporalmente.</i></p>';
+            } else {
+                trackerDiv.innerHTML = '';
             }
+        });
 
-            let trackerHtml = `<h5>Seguimiento de Cuotas (${selectedPlan.months} cuotas)</h5>`;
-            const startDate = new Date(currentStartDateInput.value + 'T00:00:00'); // Ensure date is parsed correctly
-
-            for (let i = 1; i <= selectedPlan.months; i++) {
-                const isPaid = i <= (product.cuotas_pagadas || 0);
-                const dueDate = new Date(startDate);
-                dueDate.setMonth(startDate.getMonth() + i -1);
-                const formattedDueDate = dueDate.toLocaleDateString('es-AR');
-
-                trackerHtml += `
-                    <div class="form-check">
-                        <input class="form-check-input installment-checkbox" type="checkbox" value="${i}" id="inst-${i}" ${isPaid ? 'checked' : ''}>
-                        <label class="form-check-label" for="inst-${i}">
-                            Cuota ${i} (Vence: ${formattedDueDate})
-                        </label>
-                    </div>
-                `;
-            }
-            currentTrackerDiv.innerHTML = trackerHtml;
-        }
-
-        planSelect.addEventListener('change', () => renderInstallmentTracker(planSelect, trackerDiv, startDateInput));
-        startDateInput.addEventListener('change', () => renderInstallmentTracker(planSelect, trackerDiv, startDateInput));
-        renderInstallmentTracker(planSelect, trackerDiv, startDateInput); // Initial render
         manageSaleModal.show();
     }
 
