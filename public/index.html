@@ -60,7 +60,7 @@
             <div class="card mb-4">
                 <div class="card-body">
                     <div class="row gy-3 align-items-center">
-                        <div class="col-12 col-lg-5">
+                        <div class="col-12 col-lg-4">
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fas fa-search"></i></span>
                                 <input type="text" id="search-input" class="form-control" placeholder="Buscar producto por nombre...">
@@ -76,8 +76,16 @@
                                 <option value="Informatica">Informática</option>
                             </select>
                         </div>
-                        <div class="col-12 col-md-6 col-lg-4 text-md-end">
-                            <button class="btn btn-primary w-100 w-md-auto" id="add-product-btn" data-bs-toggle="modal" data-bs-target="#addProductModal">
+                        <div class="col-12 col-md-6 col-lg-2">
+                            <select id="status-filter" class="form-select">
+                                <option value="Todos">Todos los estados</option>
+                                <option value="disponible">Disponible</option>
+                                <option value="en_plan">En Plan de Pago</option>
+                                <option value="vendido">Vendido</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-lg-3 text-lg-end">
+                            <button class="btn btn-primary w-100 w-lg-auto" id="add-product-btn" data-bs-toggle="modal" data-bs-target="#addProductModal">
                                 <i class="fas fa-plus"></i> Agregar Producto
                             </button>
                         </div>

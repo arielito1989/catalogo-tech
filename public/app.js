@@ -376,6 +376,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- CRUD & EVENT LISTENERS --- //
     searchInput.addEventListener('input', applyFiltersAndSort);
     categoryFilter.addEventListener('change', applyFiltersAndSort);
+    statusFilter.addEventListener('change', applyFiltersAndSort);
 
     tableHeaders.forEach(header => {
         header.addEventListener('click', () => {
