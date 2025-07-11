@@ -647,10 +647,14 @@ document.addEventListener('DOMContentLoaded', () => {
             planOptionsHtml += `<option value="${plan.name}" ${product.plan_pago_elegido === plan.name ? 'selected' : ''}>${plan.name}</option>`;
         });
 
+        const startDateValue = product.fecha_inicio_pago
+            ? product.fecha_inicio_pago.substring(0, 10)
+            : new Date().toISOString().split('T')[0];
+
         manageSaleModalBody.innerHTML = `
             <div class="mb-3">
                 <label for="sale-start-date" class="form-label">Fecha de Inicio de Pago</label>
-                <input type="date" class="form-control" id="sale-start-date" value="${product.fecha_inicio_pago || new Date().toISOString().split('T')[0]}">
+                <input type="date" class="form-control" id="sale-start-date" value="${startDateValue}">
             </div>
             <div class="mb-3">
                 <label for="sale-plan-select" class="form-label">Plan de Pago Elegido</label>
