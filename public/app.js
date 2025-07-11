@@ -666,12 +666,6 @@ document.addEventListener('DOMContentLoaded', () => {
         detailsModal.show();
     }
 
-    function showPaymentPlan(product) {
-        detailsModalTitle.textContent = `Planes de Pago: ${product.Producto}`;
-        detailsModalBody.innerHTML = getPaymentPlanHtml(product);
-        detailsModal.show();
-    }
-
     function showPaymentSummary(productId) {
         const product = products.find(p => p.id === productId);
         if (!product) return;
