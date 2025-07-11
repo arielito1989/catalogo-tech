@@ -281,17 +281,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
 
                 row.innerHTML = `
+                    row.innerHTML = `
+                    row.innerHTML = `
                     <td data-label="Imagen"><img src="${imageUrl}" alt="${product.Producto}" class="img-thumbnail" style="width: 50px; height: 50px; object-fit: cover;"></td>
                     <td data-label="Producto" class="product-name">${product.Producto || ''} ${statusHtml}</td>
                     <td data-label="Categoría">${product.CATEGORIA || ''}</td>
                     <td data-label="Precio Contado (USD)">${product['Precio al CONTADO'] || ''}</td>
                     <td data-label="Precio ARS">${priceArs}</td>
                     <td data-label="Acciones">
-                        ${actionsHtml}
-                        <button class="btn btn-sm btn-success view-plan" data-id="${product.id}" title="Plan de Pagos"><i class="fas fa-credit-card"></i></button>
-                        <button class="btn btn-sm btn-warning edit-product" data-id="${product.id}" title="Editar"><i class="fas fa-pencil-alt"></i></button>
-                        <button class="btn btn-sm btn-danger delete-product" data-id="${product.id}" title="Eliminar"><i class="fas fa-trash"></i></button>
+                        <div class="d-flex flex-wrap">
+                            <button class="btn btn-sm btn-light me-1 mb-1 view-details" data-id="${product.id}" title="Ver Detalles"><i class="fas fa-eye"></i></button>
+                            <button class="btn btn-sm btn-success me-1 mb-1 view-plan" data-id="${product.id}" title="Plan de Pagos"><i class="fas fa-credit-card"></i></button>
+                            <button class="btn btn-sm btn-warning me-1 mb-1 edit-product" data-id="${product.id}" title="Editar"><i class="fas fa-pencil-alt"></i></button>
+                            <button class="btn btn-sm btn-danger me-1 mb-1 delete-product" data-id="${product.id}" title="Eliminar"><i class="fas fa-trash"></i></button>
+                        </div>
+                        <hr class="my-1">
+                        <button class="btn btn-sm btn-info manage-sale w-100 mb-1" data-id="${product.id}" title="Gestionar Venta">
+                            <i class="fas fa-dolly"></i> Gestionar
+                        </button>
+                        <button class="btn btn-sm btn-primary view-payment-summary w-100 mb-1" data-id="${product.id}" title="Ver Resumen de Pago">
+                            <i class="fas fa-money-check-alt"></i> Resumen
+                        </button>
+                        <div class="form-check form-switch mt-2">
+                            <input class="form-check-input toggle-en-venta" type="checkbox" role="switch" id="toggle-${product.id}" data-id="${product.id}" ${product.en_venta ? 'checked' : ''}>
+                            <label class="form-check-label" for="toggle-${product.id}">En Venta</label>
+                        </div>
                     </td>
+                `;
+                `;
                 `;
                 catalogTableBody.appendChild(row);
             });
