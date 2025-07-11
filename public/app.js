@@ -196,17 +196,37 @@ document.addEventListener('DOMContentLoaded', () => {
                     const selectedPlan = plans.find(p => p.name === product.plan_pago_elegido);
 
                     const startDate = new Date(product.fecha_inicio_pago + 'T00:00:00');
-                    const nextDueDate = new Date(startDate);
-                    nextDueDate.setMonth(startDate.getMonth() + (product.cuotas_pagadas || 0) + 1);
-
                     const totalInstallments = selectedPlan ? selectedPlan.months : 0;
-                    const remainingInstallments = totalInstallments - (product.cuotas_pagadas || 0);
+                    const pagosRealizados = product.pagos_realizados || [];
+                    const cuotasPagadasCount = pagosRealizados.length;
+                    const remainingInstallments = totalInstallments - cuotasPagadasCount;
+
+                    let nextDueDate = 'N/A'; // Default if no next payment
+                    if (remainingInstallments > 0) {
+                        for (let i = 1; i <= totalInstallments; i++) {
+                            const isPaid = pagosRealizados.some(p => p.installment_number === i);
+                            if (!isPaid) {
+                                const dueDate = new Date(startDate);
+                                if (selectedPlan.name.includes('Cuotas')) { // Monthly plans
+                                    dueDate.setMonth(startDate.getMonth() + i);
+                                } else if (selectedPlan.name === 'quincenal') {
+                                    dueDate.setDate(startDate.getDate() + (i * 15));
+                                } else if (selectedPlan.name === 'semanal') {
+                                    dueDate.setDate(startDate.getDate() + (i * 7));
+                                }
+                                nextDueDate = dueDate.toLocaleDateString('es-AR');
+                                break; // Found the next unpaid installment
+                            }
+                        }
+                    } else {
+                        nextDueDate = 'Plan completado';
+                    }
 
                     statusHtml = `
                         <span class="badge bg-warning text-dark">
                             ${product.plan_pago_elegido}
                             <br>Cuotas restantes: ${remainingInstallments > 0 ? remainingInstallments : 0}
-                            <br>Próx. Venc: ${remainingInstallments > 0 ? nextDueDate.toLocaleDateString('es-AR') : 'Plan completado'}
+                            <br>Próx. Venc: ${nextDueDate}
                         </span>
                     `;
                 }
@@ -698,31 +718,86 @@ document.addEventListener('DOMContentLoaded', () => {
         function renderInstallmentTracker(currentPlanSelect, currentTrackerDiv, currentStartDateInput) {
             const selectedPlanName = currentPlanSelect.value;
             const selectedPlan = plans.find(p => p.name === selectedPlanName);
-            
+            const product = products.find(p => p.id === currentManagingSaleId); // Get the current product
+
             if (!selectedPlan) { // Contado
                 currentTrackerDiv.innerHTML = '';
                 return;
             }
 
-            let trackerHtml = `<h5>Seguimiento de Cuotas (${selectedPlan.months} cuotas)</h5>`;
+            const priceContado = parseFloat(product['Precio al CONTADO']);
+            if (isNaN(priceContado)) {
+                currentTrackerDiv.innerHTML = '<p class="text-danger">El precio del producto no es válido para calcular el plan.</p>';
+                return;
+            }
+
+            const finalPrice = priceContado * (1 + selectedPlan.interest);
+            const installmentValue = finalPrice / selectedPlan.months;
+            const installmentValueArs = (installmentValue * usdToArsRate).toFixed(2);
+            const finalPriceArs = (finalPrice * usdToArsRate).toFixed(2);
+
+            let trackerHtml = `
+                <h5>Seguimiento de Cuotas (${selectedPlan.months} cuotas)</h5>
+                <p>Valor por cuota: <strong>${installmentValueArs} ARS</strong></p>
+                <p>Total del plan: <strong class="text-success">${finalPriceArs} ARS</strong></p>
+                <hr>
+            `;
             const startDate = new Date(currentStartDateInput.value + 'T00:00:00'); // Ensure date is parsed correctly
 
+            // Ensure product.pagos_realizados is an array
+            const pagosRealizados = product.pagos_realizados || [];
+
             for (let i = 1; i <= selectedPlan.months; i++) {
-                const isPaid = i <= (product.cuotas_pagadas || 0);
                 const dueDate = new Date(startDate);
-                dueDate.setMonth(startDate.getMonth() + i);
+                // Calculate fixed due date for each installment
+                // For monthly plans, add 'i' months. For bi-weekly, add 'i * 15' days. For weekly, add 'i * 7' days.
+                if (selectedPlan.name.includes('Cuotas')) { // Monthly plans (3, 6, 9, 12 Cuotas)
+                    dueDate.setMonth(startDate.getMonth() + i);
+                } else if (selectedPlan.name === 'quincenal') { // Assuming a bi-weekly plan might exist
+                    dueDate.setDate(startDate.getDate() + (i * 15));
+                } else if (selectedPlan.name === 'semanal') { // Assuming a weekly plan might exist
+                    dueDate.setDate(startDate.getDate() + (i * 7));
+                }
+
                 const formattedDueDate = dueDate.toLocaleDateString('es-AR');
 
+                // Find if this installment has been paid
+                const paidRecord = pagosRealizados.find(p => p.installment_number === i);
+                const paymentDateValue = paidRecord ? paidRecord.payment_date : '';
+
                 trackerHtml += `
-                    <div class="form-check">
-                        <input class="form-check-input installment-checkbox" type="checkbox" value="${i}" id="inst-${i}" ${isPaid ? 'checked' : ''}>
-                        <label class="form-check-label" for="inst-${i}">
-                            Cuota ${i} (Vence: ${formattedDueDate})
-                        </label>
+                    <div class="mb-3 border p-2 rounded">
+                        <div class="form-check">
+                            <input class="form-check-input installment-paid-checkbox" type="checkbox" value="${i}" id="inst-paid-${i}" ${paidRecord ? 'checked' : ''}>
+                            <label class="form-check-label" for="inst-paid-${i}">
+                                Cuota ${i} (Vence: ${formattedDueDate})
+                            </label>
+                        </div>
+                        <div class="mt-2">
+                            <label for="inst-payment-date-${i}" class="form-label">Fecha de Pago Real:</label>
+                            <input type="date" class="form-control installment-payment-date" id="inst-payment-date-${i}" data-installment-number="${i}" value="${paymentDateValue}" ${!paidRecord ? 'disabled' : ''}>
+                        </div>
                     </div>
                 `;
             }
             currentTrackerDiv.innerHTML = trackerHtml;
+
+            // Add event listeners for checkboxes to enable/disable date inputs
+            currentTrackerDiv.querySelectorAll('.installment-paid-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', (event) => {
+                    const installmentNumber = event.target.value;
+                    const dateInput = currentTrackerDiv.querySelector(`#inst-payment-date-${installmentNumber}`);
+                    if (event.target.checked) {
+                        dateInput.disabled = false;
+                        if (!dateInput.value) { // If no date is set, pre-fill with today's date
+                            dateInput.value = new Date().toISOString().split('T')[0];
+                        }
+                    } else {
+                        dateInput.disabled = true;
+                        dateInput.value = ''; // Clear date if unchecked
+                    }
+                });
+            });
         }
 
         planSelect.addEventListener('change', () => renderInstallmentTracker(planSelect, trackerDiv, startDateInput));
@@ -748,8 +823,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             } else {
                 // Actualizar datos de la venta a plazos
-                const paidInstallmentsCheckboxes = document.querySelectorAll('.installment-checkbox:checked');
-                const cuotas_pagadas = paidInstallmentsCheckboxes.length;
+                const paidInstallments = [];
+                document.querySelectorAll('.installment-paid-checkbox:checked').forEach(checkbox => {
+                    const installmentNumber = parseInt(checkbox.value);
+                    const paymentDateInput = document.getElementById(`inst-payment-date-${installmentNumber}`);
+                    if (paymentDateInput && paymentDateInput.value) {
+                        paidInstallments.push({
+                            installment_number: installmentNumber,
+                            payment_date: paymentDateInput.value
+                        });
+                    }
+                });
+
+                const cuotas_pagadas = paidInstallments.length;
                 
                 const product = products.find(p => p.id === currentManagingSaleId);
                 const plans = [
@@ -768,7 +854,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     plan_pago_elegido,
                     cuotas_pagadas,
                     fecha_inicio_pago: document.getElementById('sale-start-date').value,
-                    valor_cuota_ars
+                    valor_cuota_ars,
+                    pagos_realizados: paidInstallments // New field to send to server
                 };
 
                 response = await fetch(`/products/${currentManagingSaleId}/sale`, {
@@ -799,7 +886,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const installmentValueArs = installmentValue * usdToArsRate;
 
                         alert(
-`¡Plan de pago guardado con éxito!\n\nProducto: ${product.Producto}\nPlan: ${selectedPlan.name}\n---------------------------------\nValor de cada cuota:\n${installmentValueArs.toFixed(2)} ARS\n${installmentValue.toFixed(2)} USD`
+`¡Plan de pago guardado con éxito!\n\nProducto: ${product.Producto}\nPlan: ${selectedPlan.name}\n---------------------------------\nCuotas pagadas: ${cuotas_pagadas}\nCuotas restantes: ${selectedPlan.months - cuotas_pagadas}\nValor de cada cuota:\n${installmentValueArs.toFixed(2)} ARS\n${installmentValue.toFixed(2)} USD`
                         );
                     }
                 }

@@ -34,7 +34,8 @@ const initializeDatabase = async () => {
             { name: 'plan_pago_elegido', type: 'TEXT' },
             { name: 'cuotas_pagadas', type: 'INTEGER NOT NULL DEFAULT 0' },
             { name: 'fecha_inicio_pago', type: 'DATE' },
-            { name: 'valor_cuota_ars', type: 'REAL' } // Nueva columna para el valor fijo
+            { name: 'valor_cuota_ars', type: 'REAL' }, // Nueva columna para el valor fijo
+            { name: 'pagos_realizados', type: 'TEXT' } // Nueva columna para el array de pagos realizados
         ];
 
         for (const col of columns) {
@@ -72,6 +73,18 @@ const mapProductForClient = (row) => {
             console.error(`Error parsing Imagenes JSON for product id ${row.id}:`, row.imagenes);
         }
     }
+
+    let pagosRealizados = [];
+    if (row.pagos_realizados) {
+        try {
+            const parsed = JSON.parse(row.pagos_realizados);
+            if (Array.isArray(parsed)) {
+                pagosRealizados = parsed;
+            }
+        } catch (e) {
+            console.error(`Error parsing pagos_realizados JSON for product id ${row.id}:`, row.pagos_realizados);
+        }
+    }
     return {
         id: row.id,
         Producto: row.producto,
@@ -83,7 +96,8 @@ const mapProductForClient = (row) => {
         plan_pago_elegido: row.plan_pago_elegido,
         cuotas_pagadas: row.cuotas_pagadas,
         fecha_inicio_pago: row.fecha_inicio_pago,
-        valor_cuota_ars: row.valor_cuota_ars // Incluir el nuevo campo
+        valor_cuota_ars: row.valor_cuota_ars,
+        pagos_realizados: pagosRealizados
     };
 };
 
@@ -216,13 +230,10 @@ app.put('/products/:id/status', async (req, res) => {
 
 app.put('/products/:id/sale', async (req, res) => {
     const { id } = req.params;
-    const { plan_pago_elegido, cuotas_pagadas, fecha_inicio_pago, valor_cuota_ars } = req.body;
+    const { plan_pago_elegido, fecha_inicio_pago, valor_cuota_ars, pagos_realizados } = req.body;
 
-    // Asegurarse de que cuotas_pagadas es un número entero.
-    const num_cuotas_pagadas = parseInt(cuotas_pagadas, 10);
-    if (isNaN(num_cuotas_pagadas)) {
-        return res.status(400).json({ error: 'Valor inválido para cuotas_pagadas.' });
-    }
+    const num_cuotas_pagadas = (pagos_realizados && Array.isArray(pagos_realizados)) ? pagos_realizados.length : 0;
+    const pagos_realizados_json = (pagos_realizados && Array.isArray(pagos_realizados)) ? JSON.stringify(pagos_realizados) : null;
 
     const query = `
         UPDATE products 
@@ -230,8 +241,9 @@ app.put('/products/:id/sale', async (req, res) => {
             plan_pago_elegido = $1, 
             cuotas_pagadas = $2::integer, 
             fecha_inicio_pago = $3,
-            valor_cuota_ars = $4
-        WHERE id = $5
+            valor_cuota_ars = $4,
+            pagos_realizados = $5
+        WHERE id = $6
         RETURNING *`;
 
     const values = [
@@ -239,6 +251,7 @@ app.put('/products/:id/sale', async (req, res) => {
         num_cuotas_pagadas,
         fecha_inicio_pago || null,
         valor_cuota_ars,
+        pagos_realizados_json,
         id
     ];
 
