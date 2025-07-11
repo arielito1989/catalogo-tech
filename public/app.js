@@ -676,7 +676,7 @@ document.addEventListener('DOMContentLoaded', () => {
         detailsModal.show();
     }
 
-    function showPaymentSummary(productId) {
+    """    function showPaymentSummary(productId) {
         const product = products.find(p => p.id === productId);
         if (!product) return;
 
@@ -695,67 +695,100 @@ document.addEventListener('DOMContentLoaded', () => {
             toastLiveExample.classList.add('text-bg-' + contextClass);
         };
 
-        if (!product.en_venta && product.plan_pago_elegido) {
-            // Product is sold and had a payment plan
-            const selectedPlan = plans.find(p => p.name === product.plan_pago_elegido);
-            const pagosRealizados = product.pagos_realizados || [];
-
-            let paymentsDetailHtml = '';
-            if (pagosRealizados.length > 0) {
-                paymentsDetailHtml = '<br><strong>Fechas de Pago:</strong><ul>';
-                pagosRealizados.sort((a, b) => a.installment_number - b.installment_number).forEach(pago => {
-                    paymentsDetailHtml += `<li>Cuota ${pago.installment_number}: ${new Date(pago.payment_date + 'T00:00:00').toLocaleDateString('es-AR')}</li>`;
-                });
-                paymentsDetailHtml += '</ul>';
-            }
-
-            setToastStyle('info'); // Use info for sold status
-            toastBody.innerHTML = `
-                <strong>Producto Vendido: ${product.Producto}</strong><br><br>
-                <strong>Tipo de Plan:</strong> ${product.plan_pago_elegido}<br>
-                <strong>Total de Cuotas:</strong> ${selectedPlan ? selectedPlan.months : 'N/A'}
-                ${paymentsDetailHtml}
-            `;
-            toastBootstrap.show();
-            return;
-        } else if (!product.plan_pago_elegido) {
-            setToastStyle('danger');
-            toastBody.innerHTML = `El producto ${product.Producto} no tiene un plan de pago asociado.`;
-            toastBootstrap.show();
-            return;
-        }
-
-        const selectedPlan = plans.find(p => p.name === product.plan_pago_elegido);
-
-        if (!selectedPlan) {
-            setToastStyle('danger');
-            toastBody.innerHTML = `No se encontró información del plan para ${product.plan_pago_elegido}.`;
-            toastBootstrap.show();
-            return;
-        }
-
         const priceContado = parseFloat(product['Precio al CONTADO']);
-        const finalPrice = priceContado * (1 + selectedPlan.interest);
-        const installmentValue = finalPrice / selectedPlan.months;
-        const installmentValueArs = installmentValue * (product.exchange_rate_at_sale || usdToArsRate);
+        const exchangeRate = product.exchange_rate_at_sale || usdToArsRate;
 
-        const pagosRealizados = product.pagos_realizados || [];
-        const cuotasPagadasCount = pagosRealizados.length;
-        const cuotasRestantes = selectedPlan.months - cuotasPagadasCount;
+        // --- Case 1: Product is SOLD ---
+        if (!product.en_venta) {
+            setToastStyle('info');
+            let summaryHtml = '';
 
-        const montoRestanteTotalArs = cuotasRestantes * installmentValueArs;
+            if (product.plan_pago_elegido) {
+                // Sold via payment plan
+                const selectedPlan = plans.find(p => p.name === product.plan_pago_elegido);
+                const finalPrice = priceContado * (1 + (selectedPlan?.interest || 0));
+                const finalPriceArs = (finalPrice * exchangeRate).toFixed(2);
+                
+                summaryHtml = `
+                    <div class='container-fluid'>
+                        <div class='row mb-2'>
+                            <div class='col'>
+                                <strong>Vendido: ${product.Producto}</strong><br>
+                                <small>${product.plan_pago_elegido}</small>
+                            </div>
+                        </div>
+                        <hr class='my-1'>
+                        <div class='d-flex justify-content-between align-items-center'>
+                            <span>Monto Total Pagado:</span>
+                            <span class='fw-bold fs-5'>${finalPriceArs} ARS</span>
+                        </div>
+                    </div>`;
+            } else {
+                // Sold as a one-time cash payment
+                const finalPriceArs = (priceContado * exchangeRate).toFixed(2);
+                summaryHtml = `
+                    <div class='container-fluid'>
+                        <div class='row mb-2'>
+                            <div class='col'>
+                                <strong>Vendido (Contado): ${product.Producto}</strong>
+                            </div>
+                        </div>
+                        <hr class='my-1'>
+                        <div class='d-flex justify-content-between align-items-center'>
+                            <span>Monto Total Pagado:</span>
+                            <span class='fw-bold fs-5'>${finalPriceArs} ARS</span>
+                        </div>
+                    </div>`;
+            }
+            toastBody.innerHTML = summaryHtml;
+            toastBootstrap.show();
+            return;
+        }
 
-        setToastStyle('success');
-        toastBody.innerHTML = `
-            <strong>Resumen de Pago: ${product.Producto}</strong><br><br>
-            <strong>Plan:</strong> ${selectedPlan.name}<br>
-            <strong>Cuotas pagadas:</strong> ${cuotasPagadasCount}<br>
-            <strong>Cuotas restantes:</strong> ${cuotasRestantes}<br>
-            <strong>Monto restante total:</strong> <span class="text-success">${montoRestanteTotalArs.toFixed(2)} ARS</span><br>
-            <strong>Valor por cuota:</strong> ${installmentValueArs.toFixed(2)} ARS
-        `;
+        // --- Case 2: Product has an active PAYMENT PLAN ---
+        const selectedPlan = plans.find(p => p.name === product.plan_pago_elegido);
+        if (product.plan_pago_elegido && selectedPlan) {
+            const finalPrice = priceContado * (1 + selectedPlan.interest);
+            const installmentValue = finalPrice / selectedPlan.months;
+            const installmentValueArs = installmentValue * exchangeRate;
+
+            const pagosRealizados = product.pagos_realizados || [];
+            const cuotasPagadasCount = pagosRealizados.length;
+            const cuotasRestantes = selectedPlan.months - cuotasPagadasCount;
+
+            const montoTotalAbonadoArs = (cuotasPagadasCount * installmentValueArs).toFixed(2);
+            const montoRestanteTotalArs = (cuotasRestantes * installmentValueArs).toFixed(2);
+
+            setToastStyle('success');
+            toastBody.innerHTML = `
+                <div class='container-fluid'>
+                    <div class='row mb-2'>
+                        <div class='col'>
+                            <strong>Resumen: ${product.Producto}</strong><br>
+                            <small>${selectedPlan.name}</small>
+                        </div>
+                    </div>
+                    <hr class='my-1'>
+                    <div class='d-flex justify-content-between'><span>Cuotas Pagadas:</span> <span class='fw-bold'>${cuotasPagadasCount} de ${selectedPlan.months}</span></div>
+                    <div class='d-flex justify-content-between'><span>Cuotas Restantes:</span> <span class='fw-bold'>${cuotasRestantes}</span></div>
+                    <hr class='my-1'>
+                    <div class='d-flex justify-content-between'><span>Monto Abonado:</span> <span class='fw-bold text-light'>${montoTotalAbonadoArs} ARS</span></div>
+                    <div class='d-flex justify-content-between'><span>Monto Restante:</span> <span class='fw-bold text-warning'>${montoRestanteTotalArs} ARS</span></div>
+                    <hr class='my-1'>
+                    <div class='d-flex justify-content-between align-items-center'>
+                        <span>Valor Cuota:</span>
+                        <span class='fw-bold fs-5'>${installmentValueArs.toFixed(2)} ARS</span>
+                    </div>
+                </div>`;
+            toastBootstrap.show();
+            return;
+        }
+
+        // --- Case 3: No payment plan associated ---
+        setToastStyle('danger');
+        toastBody.innerHTML = `El producto ${product.Producto} no tiene un plan de pago asociado.`;
         toastBootstrap.show();
-    }
+    }""
 
     function getPaymentPlanHtml(product) {
         const priceContado = parseFloat(product['Precio al CONTADO']);
