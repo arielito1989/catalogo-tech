@@ -15,6 +15,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const paginationControls = document.getElementById('pagination-controls');
     const themeToggle = document.getElementById('theme-toggle');
 
+    // Toast Elements
+    const toastLiveExample = document.getElementById('liveToast');
+    const toastBootstrap = bootstrap.Toast.getOrCreateInstance(toastLiveExample);
+    const toastBody = toastLiveExample.querySelector('.toast-body');
+    const toastHeader = toastLiveExample.querySelector('.toast-header');
+
     // Add/Edit Product Modal Elements
     const addProductModalEl = document.getElementById('addProductModal');
     const addProductModal = new bootstrap.Modal(addProductModalEl);
@@ -424,11 +430,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     const errorData = await response.json();
                     console.error('Error saving product:', errorData.error);
-                    alert('Error al guardar el producto: ' + errorData.error);
+                    toastHeader.querySelector('small').textContent = 'Ahora';
+                    toastHeader.classList.remove('text-bg-success');
+                    toastHeader.classList.add('text-bg-danger');
+                    toastLiveExample.classList.remove('text-bg-success');
+                    toastLiveExample.classList.add('text-bg-danger');
+                    toastBody.innerHTML = `Error al guardar el producto: ${errorData.error}`;
+                    toastBootstrap.show();
                 }
             } catch (error) {
                 console.error('Network error saving product:', error);
-                alert('Error de red al guardar el producto.');
+            toastHeader.querySelector('small').textContent = 'Ahora';
+            toastHeader.classList.remove('text-bg-success');
+            toastHeader.classList.add('text-bg-danger');
+            toastLiveExample.classList.remove('text-bg-success');
+            toastLiveExample.classList.add('text-bg-danger');
+            toastBody.innerHTML = `Error de red al guardar el producto.`;
+            toastBootstrap.show();
             }
         };
 
@@ -497,12 +515,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     const errorData = await response.json();
                     console.error('Error updating product status:', errorData.error);
-                    alert('Error al actualizar el estado del producto: ' + errorData.error);
+                    toastHeader.querySelector('small').textContent = 'Ahora';
+                    toastHeader.classList.remove('text-bg-success');
+                    toastHeader.classList.add('text-bg-danger');
+                    toastLiveExample.classList.remove('text-bg-success');
+                    toastLiveExample.classList.add('text-bg-danger');
+                    toastBody.innerHTML = `Error al actualizar el estado del producto: ${errorData.error}`;
+                    toastBootstrap.show();
                     e.target.checked = !en_venta; // Revertir el switch si hay error
                 }
             } catch (error) {
                 console.error('Network error updating product status:', error);
-                alert('Error de red al actualizar el estado del producto.');
+            toastHeader.querySelector('small').textContent = 'Ahora';
+            toastHeader.classList.remove('text-bg-success');
+            toastHeader.classList.add('text-bg-danger');
+            toastLiveExample.classList.remove('text-bg-success');
+            toastLiveExample.classList.add('text-bg-danger');
+            toastBody.innerHTML = `Error de red al actualizar el estado del producto.`;
+            toastBootstrap.show();
                 e.target.checked = !en_venta; // Revertir el switch si hay error
             }
         }
@@ -548,11 +578,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     const errorData = await response.json();
                     console.error('Error deleting product:', errorData.error);
-                    alert('Error al eliminar el producto: ' + errorData.error);
+                    toastHeader.querySelector('small').textContent = 'Ahora';
+                    toastHeader.classList.remove('text-bg-success');
+                    toastHeader.classList.add('text-bg-danger');
+                    toastLiveExample.classList.remove('text-bg-success');
+                    toastLiveExample.classList.add('text-bg-danger');
+                    toastBody.innerHTML = `Error al eliminar el producto: ${errorData.error}`;
+                    toastBootstrap.show();
                 }
             } catch (error) {
                 console.error('Network error deleting product:', error);
-                alert('Error de red al eliminar el producto.');
+            toastHeader.querySelector('small').textContent = 'Ahora';
+            toastHeader.classList.remove('text-bg-success');
+            toastHeader.classList.add('text-bg-danger');
+            toastLiveExample.classList.remove('text-bg-success');
+            toastLiveExample.classList.add('text-bg-danger');
+            toastBody.innerHTML = `Error de red al eliminar el producto.`;
+            toastBootstrap.show();
             }
         }
     }
@@ -894,20 +936,46 @@ document.addEventListener('DOMContentLoaded', () => {
                         const installmentValue = finalPrice / selectedPlan.months;
                         const installmentValueArs = installmentValue * usdToArsRate;
 
-                        alert(
-`¡Plan de pago guardado con éxito!\n\nProducto: ${product.Producto}\nPlan: ${selectedPlan.name}\n---------------------------------\nCuotas pagadas: ${cuotas_pagadas}\nCuotas restantes: ${selectedPlan.months - cuotas_pagadas}\nValor de cada cuota:\n${installmentValueArs.toFixed(2)} ARS\n${installmentValue.toFixed(2)} USD`
-                        );
+                        toastHeader.querySelector('small').textContent = 'Ahora';
+                        toastHeader.classList.remove('text-bg-danger');
+                        toastHeader.classList.add('text-bg-success');
+                        toastLiveExample.classList.remove('text-bg-danger');
+                        toastLiveExample.classList.add('text-bg-success');
+                        toastBody.innerHTML = `
+                            ¡Plan de pago guardado con éxito!<br><br>
+                            <strong>Producto:</strong> ${product.Producto}<br>
+                            <strong>Plan:</strong> ${selectedPlan.name}<br>
+                            <hr>
+                            <strong>Cuotas pagadas:</strong> ${cuotas_pagadas}<br>
+                            <strong>Cuotas restantes:</strong> ${selectedPlan.months - cuotas_pagadas}<br>
+                            <strong>Valor de cada cuota:</strong><br>
+                            ${installmentValueArs.toFixed(2)} ARS<br>
+                            ${installmentValue.toFixed(2)} USD
+                        `;
+                        toastBootstrap.show();
                     }
                 }
                 
                 loadProducts(); // Recargar productos después de la alerta
             } else {
                 const errorData = await response.json();
-                alert('Error al guardar los cambios: ' + errorData.error);
+                toastHeader.querySelector('small').textContent = 'Ahora';
+                toastHeader.classList.remove('text-bg-success');
+                toastHeader.classList.add('text-bg-danger');
+                toastLiveExample.classList.remove('text-bg-success');
+                toastLiveExample.classList.add('text-bg-danger');
+                toastBody.innerHTML = `Error al guardar los cambios: ${errorData.error}`;
+                toastBootstrap.show();
             }
         } catch (error) {
             console.error('Error de red al guardar los cambios:', error);
-            alert('Error de red al guardar los cambios.');
+            toastHeader.querySelector('small').textContent = 'Ahora';
+            toastHeader.classList.remove('text-bg-success');
+            toastHeader.classList.add('text-bg-danger');
+            toastLiveExample.classList.remove('text-bg-success');
+            toastLiveExample.classList.add('text-bg-danger');
+            toastBody.innerHTML = `Error de red al guardar los cambios.`;
+            toastBootstrap.show();
         }
     });
 
