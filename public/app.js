@@ -181,25 +181,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 const row = document.createElement('tr');
                 const imageUrl = product.Imagenes && product.Imagenes.length > 0 ? product.Imagenes[0] : '/images/placeholder.png';
                 
+                let statusHtml = '';
                 if (!product.en_venta) {
                     row.classList.add('product-sold');
+                    statusHtml = '<span class="badge bg-danger">Vendido (Al contado)</span>';
                 } else if (product.plan_pago_elegido) {
                     row.classList.add('product-in-plan');
+                    const startDate = new Date(product.fecha_inicio_pago + 'T00:00:00');
+                    const nextDueDate = new Date(startDate);
+                    nextDueDate.setMonth(startDate.getMonth() + (product.cuotas_pagadas || 0) + 1);
+                    statusHtml = `<span class="badge bg-warning text-dark">${product.plan_pago_elegido} - Próx. Venc: ${nextDueDate.toLocaleDateString('es-AR')}</span>`;
                 }
-
-                let actionsHtml = `
-                    <button class="btn btn-sm btn-info manage-sale" data-id="${product.id}" title="Gestionar Venta">
-                        <i class="fas fa-dolly"></i> Gestionar
-                    </button>
-                    <div class="form-check form-switch mt-2">
-                        <input class="form-check-input toggle-en-venta" type="checkbox" role="switch" id="toggle-${product.id}" data-id="${product.id}" ${product.en_venta ? 'checked' : ''}>
-                        <label class="form-check-label" for="toggle-${product.id}">En Venta</label>
-                    </div>
-                `;
 
                 row.innerHTML = `
                     <td><img src="${imageUrl}" alt="${product.Producto}" class="img-thumbnail" style="width: 50px; height: 50px; object-fit: cover;"></td>
-                    <td class="product-name">${product.Producto || ''} ${!product.en_venta ? '<span class="badge bg-danger">Vendido</span>' : ''}</td>
+                    <td class="product-name">${product.Producto || ''} ${statusHtml}</td>
                     <td>${product.CATEGORIA || ''}</td>
                     <td>${product['Precio al CONTADO'] || ''}</td>
                     <td>${priceArs}</td>

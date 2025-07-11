@@ -13,11 +13,11 @@
 }
 
 .product-in-plan td {
-    background-color: #fff3cd; /* Un color naranja claro */
+    background-color: #ffeadb; /* Naranja más intenso para tema claro */
 }
 
 [data-bs-theme="dark"] .product-in-plan td {
-    background-color: #664d03; /* Un color naranja más oscuro para el tema oscuro */
+    background-color: #8c5a38; /* Naranja más oscuro para tema oscuro */
 }
 
 /* General Body Styles */
