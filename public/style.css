@@ -1,21 +1,21 @@
 
 /* Theme-aware status colors */
 .product-available td {
-    background-color: #e8f5e9; /* Light Green */
+    background-color: #e0f2f1; /* Light Teal */
 }
 [data-bs-theme="dark"] .product-available td {
     background-color: #1e4d2b;
 }
 
 .product-in-plan td {
-    background-color: #fff8e1; /* Light Yellow */
+    background-color: #fff3e0; /* Light Orange */
 }
 [data-bs-theme="dark"] .product-in-plan td {
     background-color: #664d03;
 }
 
 .product-sold td {
-    background-color: #ffebee; /* Light Red */
+    background-color: #fce4ec; /* Light Pink */
     text-decoration: line-through;
     opacity: 0.7;
 }

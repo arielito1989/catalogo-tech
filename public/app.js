@@ -135,8 +135,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Apply category filter
         const selectedCategory = categoryFilter.value;
+        console.log(`Filtrando por categoría: ${selectedCategory}`); // Debugging line
         if (selectedCategory !== 'Todas las categorías') {
             tempProducts = tempProducts.filter(p => p.CATEGORIA === selectedCategory);
+        }
+
+        // Apply status filter
+        const selectedStatus = statusFilter.value;
+        console.log(`Filtrando por estado: ${selectedStatus}`); // Debugging line
+        if (selectedStatus !== 'Todos') {
+            tempProducts = tempProducts.filter(p => {
+                const isSold = !p.en_venta;
+                const isInPlan = p.en_venta && p.plan_pago_elegido;
+                const isAvailable = p.en_venta && !p.plan_pago_elegido;
+
+                if (selectedStatus === 'disponible') return isAvailable;
+                if (selectedStatus === 'en_plan') return isInPlan;
+                if (selectedStatus === 'vendido') return isSold;
+                return false;
+            });
         }
 
         // Apply sorting
