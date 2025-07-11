@@ -12,6 +12,14 @@
     text-decoration: none !important; /* Ensure badge text is not struck through */
 }
 
+.product-in-plan td {
+    background-color: #fff3cd; /* Un color naranja claro */
+}
+
+[data-bs-theme="dark"] .product-in-plan td {
+    background-color: #664d03; /* Un color naranja más oscuro para el tema oscuro */
+}
+
 /* General Body Styles */
 body {
     font-family: 'Poppins', sans-serif;

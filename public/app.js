@@ -183,6 +183,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (!product.en_venta) {
                     row.classList.add('product-sold');
+                } else if (product.plan_pago_elegido) {
+                    row.classList.add('product-in-plan');
                 }
 
                 let actionsHtml = `
@@ -684,7 +686,7 @@ document.addEventListener('DOMContentLoaded', () => {
             for (let i = 1; i <= selectedPlan.months; i++) {
                 const isPaid = i <= (product.cuotas_pagadas || 0);
                 const dueDate = new Date(startDate);
-                dueDate.setMonth(startDate.getMonth() + i -1);
+                dueDate.setMonth(startDate.getMonth() + i);
                 const formattedDueDate = dueDate.toLocaleDateString('es-AR');
 
                 trackerHtml += `
