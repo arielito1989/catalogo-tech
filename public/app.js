@@ -738,7 +738,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (response.ok) {
                 manageSaleModal.hide();
-                loadProducts();
+
+                // Mostrar alerta de éxito solo para planes a plazos
+                if (!esVentaContado) {
+                    const product = products.find(p => p.id === currentManagingSaleId);
+                    const plans = [
+                        { months: 3, interest: 0.50, name: 'Plan 3 Cuotas' },
+                        { months: 6, interest: 1.00, name: 'Plan 6 Cuotas' },
+                        { months: 9, interest: 1.50, name: 'Plan 9 Cuotas' },
+                        { months: 12, interest: 2.00, name: 'Plan Exclusivo' }
+                    ];
+                    const selectedPlan = plans.find(p => p.name === plan_pago_elegido);
+                    const priceContado = parseFloat(product['Precio al CONTADO']);
+
+                    if (product && selectedPlan && !isNaN(priceContado)) {
+                        const finalPrice = priceContado * (1 + selectedPlan.interest);
+                        const installmentValue = finalPrice / selectedPlan.months;
+                        const installmentValueArs = installmentValue * usdToArsRate;
+
+                        alert(
+`¡Plan de pago guardado con éxito!\n\nProducto: ${product.Producto}\nPlan: ${selectedPlan.name}\n---------------------------------\nValor de cada cuota:\n${installmentValueArs.toFixed(2)} ARS (aprox.)\n${installmentValue.toFixed(2)} USD`
+                        );
+                    }
+                }
+                
+                loadProducts(); // Recargar productos después de la alerta
             } else {
                 const errorData = await response.json();
                 alert('Error al guardar los cambios: ' + errorData.error);
