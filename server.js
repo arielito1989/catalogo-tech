@@ -13,28 +13,43 @@ const pool = new Pool({
 });
 
 const initializeDatabase = async () => {
-    if (pool) {
-        const client = await pool.connect();
-        try {
-            await client.query(`
-                CREATE TABLE IF NOT EXISTS products (
-                    id TEXT PRIMARY KEY,
-                    producto TEXT,
-                    categoria TEXT,
-                    "Precio PY" REAL,
-                    "Precio al CONTADO" REAL,
-                    imagenes TEXT,
-                    en_venta BOOLEAN NOT NULL DEFAULT TRUE,
-                    plan_pago_elegido TEXT,
-                    cuotas_pagadas INTEGER NOT NULL DEFAULT 0,
-                    fecha_inicio_pago DATE
-                );
-            `);
-        } catch (err) {
-            console.error('Error during database initialization:', err);
-        } finally {
-            client.release();
+    if (!pool) return;
+    const client = await pool.connect();
+    try {
+        // Step 1: Ensure the table exists with its original columns
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS products (
+                id TEXT PRIMARY KEY,
+                producto TEXT,
+                categoria TEXT,
+                "Precio PY" REAL,
+                "Precio al CONTADO" REAL,
+                imagenes TEXT,
+                en_venta BOOLEAN NOT NULL DEFAULT TRUE
+            );
+        `);
+
+        // Step 2: Add new columns if they don't exist (simple migration)
+        const columns = [
+            { name: 'plan_pago_elegido', type: 'TEXT' },
+            { name: 'cuotas_pagadas', type: 'INTEGER NOT NULL DEFAULT 0' },
+            { name: 'fecha_inicio_pago', type: 'DATE' }
+        ];
+
+        for (const col of columns) {
+            const checkCol = await client.query(
+                "SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = $1",
+                [col.name]
+            );
+            if (checkCol.rowCount === 0) {
+                await client.query(`ALTER TABLE products ADD COLUMN ${col.name} ${col.type}`);
+                console.log(`Column ${col.name} added to products table.`);
+            }
         }
+    } catch (err) {
+        console.error('Error during database initialization/migration:', err);
+    } finally {
+        client.release();
     }
 };
 
