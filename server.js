@@ -200,23 +200,23 @@ app.put('/products/:id/status', async (req, res) => {
 app.put('/products/:id/sale', async (req, res) => {
     const { id } = req.params;
     const { plan_pago_elegido, cuotas_pagadas, fecha_inicio_pago } = req.body;
-    const fields = [];
-    const values = [];
-    let paramIndex = 1;
-    const addField = (name, value) => {
-        if (value !== undefined) {
-            values.push(value);
-            fields.push(`${name} = ${paramIndex++}`);
-        }
-    };
-    addField('plan_pago_elegido', plan_pago_elegido);
-    addField('cuotas_pagadas', cuotas_pagadas);
-    addField('fecha_inicio_pago', fecha_inicio_pago || null);
-    if (fields.length === 0) {
-        return res.status(400).json({ error: 'No fields to update.' });
-    }
-    const query = `UPDATE products SET ${fields.join(', ')} WHERE id = ${paramIndex} RETURNING *`;
-    values.push(id);
+
+    const query = `
+        UPDATE products 
+        SET 
+            plan_pago_elegido = $1, 
+            cuotas_pagadas = $2, 
+            fecha_inicio_pago = $3
+        WHERE id = $4
+        RETURNING *`;
+
+    const values = [
+        plan_pago_elegido,
+        cuotas_pagadas,
+        fecha_inicio_pago || null,
+        id
+    ];
+
     try {
         const client = await pool.connect();
         const result = await client.query(query, values);
