@@ -263,12 +263,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
 
                 row.innerHTML = `
-                    <td><img src="${imageUrl}" alt="${product.Producto}" class="img-thumbnail" style="width: 50px; height: 50px; object-fit: cover;"></td>
-                    <td class="product-name">${product.Producto || ''} ${statusHtml}</td>
-                    <td>${product.CATEGORIA || ''}</td>
-                    <td>${product['Precio al CONTADO'] || ''}</td>
-                    <td>${priceArs}</td>
-                    <td>
+                    <td data-label="Imagen"><img src="${imageUrl}" alt="${product.Producto}" class="img-thumbnail" style="width: 50px; height: 50px; object-fit: cover;"></td>
+                    <td data-label="Producto" class="product-name">${product.Producto || ''} ${statusHtml}</td>
+                    <td data-label="Categoría">${product.CATEGORIA || ''}</td>
+                    <td data-label="Precio Contado (USD)">${product['Precio al CONTADO'] || ''}</td>
+                    <td data-label="Precio ARS">${priceArs}</td>
+                    <td data-label="Acciones">
                         ${actionsHtml}
                         <button class="btn btn-sm btn-success view-plan" data-id="${product.id}" title="Plan de Pagos"><i class="fas fa-credit-card"></i></button>
                         <button class="btn btn-sm btn-warning edit-product" data-id="${product.id}" title="Editar"><i class="fas fa-pencil-alt"></i></button>
