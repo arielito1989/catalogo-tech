@@ -663,19 +663,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const planSelect = document.getElementById('sale-plan-select');
         const trackerDiv = document.getElementById('installments-tracker');
+        const startDateInput = document.getElementById('sale-start-date');
+        console.log('startDateInput en openManageSaleModal:', startDateInput); // Para depuración
 
-        function renderInstallmentTracker() {
-            const selectedPlanName = planSelect.value;
+        function renderInstallmentTracker(currentPlanSelect, currentTrackerDiv, currentStartDateInput) {
+            const selectedPlanName = currentPlanSelect.value;
             const selectedPlan = plans.find(p => p.name === selectedPlanName);
             
             if (!selectedPlan) { // Contado
-                trackerDiv.innerHTML = '';
+                currentTrackerDiv.innerHTML = '';
                 return;
             }
 
             let trackerHtml = `<h5>Seguimiento de Cuotas (${selectedPlan.months} cuotas)</h5>`;
-            const startDateInput = document.getElementById('sale-start-date');
-            const startDate = new Date(startDateInput.value + 'T00:00:00'); // Ensure date is parsed correctly
+            const startDate = new Date(currentStartDateInput.value + 'T00:00:00'); // Ensure date is parsed correctly
 
             for (let i = 1; i <= selectedPlan.months; i++) {
                 const isPaid = i <= (product.cuotas_pagadas || 0);
@@ -692,11 +693,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `;
             }
-            trackerDiv.innerHTML = trackerHtml;
+            currentTrackerDiv.innerHTML = trackerHtml;
         }
 
-        planSelect.addEventListener('change', renderInstallmentTracker);
-        renderInstallmentTracker(); // Initial render
+        planSelect.addEventListener('change', () => renderInstallmentTracker(planSelect, trackerDiv, startDateInput));
+        startDateInput.addEventListener('change', () => renderInstallmentTracker(planSelect, trackerDiv, startDateInput));
+        renderInstallmentTracker(planSelect, trackerDiv, startDateInput); // Initial render
         manageSaleModal.show();
     }
 
