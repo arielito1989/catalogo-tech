@@ -642,7 +642,7 @@ document.addEventListener('DOMContentLoaded', () => {
             { months: 12, interest: 2.00, name: 'Plan Exclusivo' }
         ];
 
-        let planOptionsHtml = '<option value="Contado">Contado</option>';
+        let planOptionsHtml = '<option value="">Contado</option>';
         plans.forEach(plan => {
             planOptionsHtml += `<option value="${plan.name}" ${product.plan_pago_elegido === plan.name ? 'selected' : ''}>${plan.name}</option>`;
         });
@@ -706,23 +706,32 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!currentManagingSaleId) return;
 
         const plan_pago_elegido = document.getElementById('sale-plan-select').value;
-        const paidInstallmentsCheckboxes = document.querySelectorAll('.installment-checkbox:checked');
-        const cuotas_pagadas = paidInstallmentsCheckboxes.length;
+        const esVentaContado = plan_pago_elegido === "";
 
-        const saleData = {
-            plan_pago_elegido,
-            cuotas_pagadas,
-            fecha_inicio_pago: document.getElementById('sale-start-date').value // Include start date
-        };
-
+        let response;
         try {
-            const response = await fetch(`/products/${currentManagingSaleId}/sale`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(saleData)
-            });
+            if (esVentaContado) {
+                // Marcar como vendido
+                response = await fetch(`/products/${currentManagingSaleId}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ en_venta: false })
+                });
+            } else {
+                // Actualizar datos de la venta a plazos
+                const paidInstallmentsCheckboxes = document.querySelectorAll('.installment-checkbox:checked');
+                const cuotas_pagadas = paidInstallmentsCheckboxes.length;
+                const saleData = {
+                    plan_pago_elegido,
+                    cuotas_pagadas,
+                    fecha_inicio_pago: document.getElementById('sale-start-date').value
+                };
+                response = await fetch(`/products/${currentManagingSaleId}/sale`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(saleData)
+                });
+            }
 
             if (response.ok) {
                 manageSaleModal.hide();
@@ -732,6 +741,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('Error al guardar los cambios: ' + errorData.error);
             }
         } catch (error) {
+            console.error('Error de red al guardar los cambios:', error);
             alert('Error de red al guardar los cambios.');
         }
     });
