@@ -687,6 +687,14 @@ document.addEventListener('DOMContentLoaded', () => {
             { months: 12, interest: 2.00, name: 'Plan Exclusivo' }
         ];
 
+        // Helper to set toast style
+        const setToastStyle = (contextClass) => {
+            toastHeader.querySelector('small').textContent = 'Ahora';
+            toastLiveExample.className = 'toast'; // Reset classes
+            toastHeader.className = 'toast-header'; // Reset classes
+            toastLiveExample.classList.add('text-bg-' + contextClass);
+        };
+
         if (!product.en_venta && product.plan_pago_elegido) {
             // Product is sold and had a payment plan
             const selectedPlan = plans.find(p => p.name === product.plan_pago_elegido);
@@ -701,11 +709,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 paymentsDetailHtml += '</ul>';
             }
 
-            toastHeader.querySelector('small').textContent = 'Ahora';
-            toastHeader.classList.remove('text-bg-success', 'text-bg-danger');
-            toastHeader.classList.add('text-bg-info'); // Use info for sold status
-            toastLiveExample.classList.remove('text-bg-success', 'text-bg-danger');
-            toastLiveExample.classList.add('text-bg-info');
+            setToastStyle('info'); // Use info for sold status
             toastBody.innerHTML = `
                 <strong>Producto Vendido: ${product.Producto}</strong><br><br>
                 <strong>Tipo de Plan:</strong> ${product.plan_pago_elegido}<br>
@@ -715,11 +719,7 @@ document.addEventListener('DOMContentLoaded', () => {
             toastBootstrap.show();
             return;
         } else if (!product.plan_pago_elegido) {
-            toastHeader.querySelector('small').textContent = 'Ahora';
-            toastHeader.classList.remove('text-bg-success');
-            toastHeader.classList.add('text-bg-danger');
-            toastLiveExample.classList.remove('text-bg-success');
-            toastLiveExample.classList.add('text-bg-danger');
+            setToastStyle('danger');
             toastBody.innerHTML = `El producto ${product.Producto} no tiene un plan de pago asociado.`;
             toastBootstrap.show();
             return;
@@ -728,11 +728,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectedPlan = plans.find(p => p.name === product.plan_pago_elegido);
 
         if (!selectedPlan) {
-            toastHeader.querySelector('small').textContent = 'Ahora';
-            toastHeader.classList.remove('text-bg-success');
-            toastHeader.classList.add('text-bg-danger');
-            toastLiveExample.classList.remove('text-bg-success');
-            toastLiveExample.classList.add('text-bg-danger');
+            setToastStyle('danger');
             toastBody.innerHTML = `No se encontró información del plan para ${product.plan_pago_elegido}.`;
             toastBootstrap.show();
             return;
@@ -749,11 +745,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const montoRestanteTotalArs = cuotasRestantes * installmentValueArs;
 
-        toastHeader.querySelector('small').textContent = 'Ahora';
-        toastHeader.classList.remove('text-bg-danger');
-        toastHeader.classList.add('text-bg-success');
-        toastLiveExample.classList.remove('text-bg-danger');
-        toastLiveExample.classList.add('text-bg-success');
+        setToastStyle('success');
         toastBody.innerHTML = `
             <strong>Resumen de Pago: ${product.Producto}</strong><br><br>
             <strong>Plan:</strong> ${selectedPlan.name}<br>
