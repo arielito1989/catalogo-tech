@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const noProductsMessage = document.getElementById('no-products-message');
     const tableContainer = document.querySelector('.table-responsive');
     const categoryFilter = document.getElementById('category-filter');
+    const statusFilter = document.getElementById('status-filter');
     const tableHeaders = document.querySelectorAll('th.sortable');
     const paginationControls = document.getElementById('pagination-controls');
     const themeToggle = document.getElementById('theme-toggle');
