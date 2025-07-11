@@ -676,7 +676,7 @@ document.addEventListener('DOMContentLoaded', () => {
         detailsModal.show();
     }
 
-    """    function showPaymentSummary(productId) {
+    function showPaymentSummary(productId) {
         const product = products.find(p => p.id === productId);
         if (!product) return;
 
@@ -788,7 +788,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setToastStyle('danger');
         toastBody.innerHTML = `El producto ${product.Producto} no tiene un plan de pago asociado.`;
         toastBootstrap.show();
-    }""
+    }
 
     function getPaymentPlanHtml(product) {
         const priceContado = parseFloat(product['Precio al CONTADO']);
