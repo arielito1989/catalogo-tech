@@ -217,7 +217,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (!product.en_venta) {
                     rowClass = 'product-sold'; // Rojo
-                    statusHtml = '<span class="badge bg-danger">Vendido (Al contado)</span>';
+                    if (product.plan_pago_elegido) {
+                        statusHtml = '<span class="badge bg-danger">Vendido (Plan de pago)</span>';
+                    } else {
+                        statusHtml = '<span class="badge bg-danger">Vendido (Al contado)</span>';
+                    }
                 } else if (product.plan_pago_elegido) {
                     rowClass = 'product-in-plan'; // Naranja
                     const plans = [
