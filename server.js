@@ -33,7 +33,8 @@ const initializeDatabase = async () => {
         const columns = [
             { name: 'plan_pago_elegido', type: 'TEXT' },
             { name: 'cuotas_pagadas', type: 'INTEGER NOT NULL DEFAULT 0' },
-            { name: 'fecha_inicio_pago', type: 'DATE' }
+            { name: 'fecha_inicio_pago', type: 'DATE' },
+            { name: 'valor_cuota_ars', type: 'REAL' } // Nueva columna para el valor fijo
         ];
 
         for (const col of columns) {
@@ -82,6 +83,7 @@ const mapProductForClient = (row) => {
         plan_pago_elegido: row.plan_pago_elegido,
         cuotas_pagadas: row.cuotas_pagadas,
         fecha_inicio_pago: row.fecha_inicio_pago,
+        valor_cuota_ars: row.valor_cuota_ars // Incluir el nuevo campo
     };
 };
 
@@ -214,7 +216,7 @@ app.put('/products/:id/status', async (req, res) => {
 
 app.put('/products/:id/sale', async (req, res) => {
     const { id } = req.params;
-    const { plan_pago_elegido, cuotas_pagadas, fecha_inicio_pago } = req.body;
+    const { plan_pago_elegido, cuotas_pagadas, fecha_inicio_pago, valor_cuota_ars } = req.body;
 
     // Asegurarse de que cuotas_pagadas es un número entero.
     const num_cuotas_pagadas = parseInt(cuotas_pagadas, 10);
@@ -227,14 +229,16 @@ app.put('/products/:id/sale', async (req, res) => {
         SET 
             plan_pago_elegido = $1, 
             cuotas_pagadas = $2::integer, 
-            fecha_inicio_pago = $3
-        WHERE id = $4
+            fecha_inicio_pago = $3,
+            valor_cuota_ars = $4
+        WHERE id = $5
         RETURNING *`;
 
     const values = [
         plan_pago_elegido,
         num_cuotas_pagadas,
         fecha_inicio_pago || null,
+        valor_cuota_ars,
         id
     ];
 

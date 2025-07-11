@@ -724,11 +724,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Actualizar datos de la venta a plazos
                 const paidInstallmentsCheckboxes = document.querySelectorAll('.installment-checkbox:checked');
                 const cuotas_pagadas = paidInstallmentsCheckboxes.length;
+                
+                const product = products.find(p => p.id === currentManagingSaleId);
+                const plans = [
+                    { months: 3, interest: 0.50, name: 'Plan 3 Cuotas' },
+                    { months: 6, interest: 1.00, name: 'Plan 6 Cuotas' },
+                    { months: 9, interest: 1.50, name: 'Plan 9 Cuotas' },
+                    { months: 12, interest: 2.00, name: 'Plan Exclusivo' }
+                ];
+                const selectedPlan = plans.find(p => p.name === plan_pago_elegido);
+                const priceContado = parseFloat(product['Precio al CONTADO']);
+                const finalPrice = priceContado * (1 + selectedPlan.interest);
+                const installmentValue = finalPrice / selectedPlan.months;
+                const valor_cuota_ars = installmentValue * usdToArsRate;
+
                 const saleData = {
                     plan_pago_elegido,
                     cuotas_pagadas,
-                    fecha_inicio_pago: document.getElementById('sale-start-date').value
+                    fecha_inicio_pago: document.getElementById('sale-start-date').value,
+                    valor_cuota_ars
                 };
+
                 response = await fetch(`/products/${currentManagingSaleId}/sale`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
@@ -757,7 +773,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const installmentValueArs = installmentValue * usdToArsRate;
 
                         alert(
-`¡Plan de pago guardado con éxito!\n\nProducto: ${product.Producto}\nPlan: ${selectedPlan.name}\n---------------------------------\nValor de cada cuota:\n${installmentValueArs.toFixed(2)} ARS (aprox.)\n${installmentValue.toFixed(2)} USD`
+`¡Plan de pago guardado con éxito!\n\nProducto: ${product.Producto}\nPlan: ${selectedPlan.name}\n---------------------------------\nValor de cada cuota:\n${installmentValueArs.toFixed(2)} ARS\n${installmentValue.toFixed(2)} USD`
                         );
                     }
                 }
