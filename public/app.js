@@ -812,6 +812,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const plan_pago_elegido = document.getElementById('sale-plan-select').value;
         const esVentaContado = plan_pago_elegido === "";
 
+        const paidInstallments = [];
+        document.querySelectorAll('.installment-paid-checkbox:checked').forEach(checkbox => {
+            const installmentNumber = parseInt(checkbox.value);
+            const paymentDateInput = document.getElementById(`inst-payment-date-${installmentNumber}`);
+            if (paymentDateInput && paymentDateInput.value) {
+                paidInstallments.push({
+                    installment_number: installmentNumber,
+                    payment_date: paymentDateInput.value
+                });
+            }
+        });
+        const cuotas_pagadas = paidInstallments.length;
+
         let response;
         try {
             if (esVentaContado) {
@@ -823,19 +836,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             } else {
                 // Actualizar datos de la venta a plazos
-                const paidInstallments = [];
-                document.querySelectorAll('.installment-paid-checkbox:checked').forEach(checkbox => {
-                    const installmentNumber = parseInt(checkbox.value);
-                    const paymentDateInput = document.getElementById(`inst-payment-date-${installmentNumber}`);
-                    if (paymentDateInput && paymentDateInput.value) {
-                        paidInstallments.push({
-                            installment_number: installmentNumber,
-                            payment_date: paymentDateInput.value
-                        });
-                    }
-                });
-
-                const cuotas_pagadas = paidInstallments.length;
                 
                 const product = products.find(p => p.id === currentManagingSaleId);
                 const plans = [
