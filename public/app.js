@@ -674,7 +674,41 @@ document.addEventListener('DOMContentLoaded', () => {
         const product = products.find(p => p.id === productId);
         if (!product) return;
 
-        if (!product.plan_pago_elegido) {
+        const plans = [
+            { months: 3, interest: 0.50, name: 'Plan 3 Cuotas' },
+            { months: 6, interest: 1.00, name: 'Plan 6 Cuotas' },
+            { months: 9, interest: 1.50, name: 'Plan 9 Cuotas' },
+            { months: 12, interest: 2.00, name: 'Plan Exclusivo' }
+        ];
+
+        if (!product.en_venta && product.plan_pago_elegido) {
+            // Product is sold and had a payment plan
+            const selectedPlan = plans.find(p => p.name === product.plan_pago_elegido);
+            const pagosRealizados = product.pagos_realizados || [];
+
+            let paymentsDetailHtml = '';
+            if (pagosRealizados.length > 0) {
+                paymentsDetailHtml = '<br><strong>Fechas de Pago:</strong><ul>';
+                pagosRealizados.sort((a, b) => a.installment_number - b.installment_number).forEach(pago => {
+                    paymentsDetailHtml += `<li>Cuota ${pago.installment_number}: ${new Date(pago.payment_date + 'T00:00:00').toLocaleDateString('es-AR')}</li>`;
+                });
+                paymentsDetailHtml += '</ul>';
+            }
+
+            toastHeader.querySelector('small').textContent = 'Ahora';
+            toastHeader.classList.remove('text-bg-success', 'text-bg-danger');
+            toastHeader.classList.add('text-bg-info'); // Use info for sold status
+            toastLiveExample.classList.remove('text-bg-success', 'text-bg-danger');
+            toastLiveExample.classList.add('text-bg-info');
+            toastBody.innerHTML = `
+                <strong>Producto Vendido: ${product.Producto}</strong><br><br>
+                <strong>Tipo de Plan:</strong> ${product.plan_pago_elegido}<br>
+                <strong>Total de Cuotas:</strong> ${selectedPlan ? selectedPlan.months : 'N/A'}
+                ${paymentsDetailHtml}
+            `;
+            toastBootstrap.show();
+            return;
+        } else if (!product.plan_pago_elegido) {
             toastHeader.querySelector('small').textContent = 'Ahora';
             toastHeader.classList.remove('text-bg-success');
             toastHeader.classList.add('text-bg-danger');
@@ -685,12 +719,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const plans = [
-            { months: 3, interest: 0.50, name: 'Plan 3 Cuotas' },
-            { months: 6, interest: 1.00, name: 'Plan 6 Cuotas' },
-            { months: 9, interest: 1.50, name: 'Plan 9 Cuotas' },
-            { months: 12, interest: 2.00, name: 'Plan Exclusivo' }
-        ];
         const selectedPlan = plans.find(p => p.name === product.plan_pago_elegido);
 
         if (!selectedPlan) {

@@ -235,30 +235,54 @@ app.put('/products/:id/sale', async (req, res) => {
     const num_cuotas_pagadas = (pagos_realizados && Array.isArray(pagos_realizados)) ? pagos_realizados.length : 0;
     const pagos_realizados_json = (pagos_realizados && Array.isArray(pagos_realizados)) ? JSON.stringify(pagos_realizados) : null;
 
-    const query = `
-        UPDATE products 
-        SET 
-            plan_pago_elegido = $1, 
-            cuotas_pagadas = $2::integer, 
-            fecha_inicio_pago = $3,
-            valor_cuota_ars = $4,
-            pagos_realizados = $5
-        WHERE id = $6
-        RETURNING *`;
-
-    const values = [
-        plan_pago_elegido,
-        num_cuotas_pagadas,
-        fecha_inicio_pago || null,
-        valor_cuota_ars,
-        pagos_realizados_json,
-        id
-    ];
-
+    let client;
     try {
-        const client = await pool.connect();
+        client = await pool.connect();
+
+        // Fetch the current product to get total installments
+        const currentProductResult = await client.query('SELECT * FROM products WHERE id = $1', [id]);
+        if (currentProductResult.rowCount === 0) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+        const currentProduct = currentProductResult.rows[0];
+
+        const plans = [
+            { months: 3, interest: 0.50, name: 'Plan 3 Cuotas' },
+            { months: 6, interest: 1.00, name: 'Plan 6 Cuotas' },
+            { months: 9, interest: 1.50, name: 'Plan 9 Cuotas' },
+            { months: 12, interest: 2.00, name: 'Plan Exclusivo' }
+        ];
+        const selectedPlan = plans.find(p => p.name === plan_pago_elegido);
+
+        let enVentaStatus = true; // Default to true
+        if (selectedPlan && num_cuotas_pagadas >= selectedPlan.months) {
+            enVentaStatus = false; // Mark as sold if all installments are paid
+        }
+
+        const query = `
+            UPDATE products 
+            SET 
+                plan_pago_elegido = $1, 
+                cuotas_pagadas = $2::integer, 
+                fecha_inicio_pago = $3,
+                valor_cuota_ars = $4,
+                pagos_realizados = $5,
+                en_venta = $6
+            WHERE id = $7
+            RETURNING *`;
+
+        const values = [
+            plan_pago_elegido,
+            num_cuotas_pagadas,
+            fecha_inicio_pago || null,
+            valor_cuota_ars,
+            pagos_realizados_json,
+            enVentaStatus,
+            id
+        ];
+
         const result = await client.query(query, values);
-        client.release();
+        
         if (result.rowCount > 0) {
             res.json(mapProductForClient(result.rows[0]));
         } else {
@@ -267,6 +291,8 @@ app.put('/products/:id/sale', async (req, res) => {
     } catch (err) {
         console.error('Error updating sale data:', err);
         res.status(500).json({ error: 'Error updating sale data.' });
+    } finally {
+        if (client) client.release();
     }
 });
 
