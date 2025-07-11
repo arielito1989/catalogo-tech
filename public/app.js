@@ -193,6 +193,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     statusHtml = `<span class="badge bg-warning text-dark">${product.plan_pago_elegido} - Próx. Venc: ${nextDueDate.toLocaleDateString('es-AR')}</span>`;
                 }
 
+                const actionsHtml = `
+                    <button class="btn btn-sm btn-info manage-sale" data-id="${product.id}" title="Gestionar Venta">
+                        <i class="fas fa-dolly"></i> Gestionar
+                    </button>
+                    <div class="form-check form-switch mt-2">
+                        <input class="form-check-input toggle-en-venta" type="checkbox" role="switch" id="toggle-${product.id}" data-id="${product.id}" ${product.en_venta ? 'checked' : ''}>
+                        <label class="form-check-label" for="toggle-${product.id}">En Venta</label>
+                    </div>
+                `;
+
                 row.innerHTML = `
                     <td><img src="${imageUrl}" alt="${product.Producto}" class="img-thumbnail" style="width: 50px; height: 50px; object-fit: cover;"></td>
                     <td class="product-name">${product.Producto || ''} ${statusHtml}</td>
