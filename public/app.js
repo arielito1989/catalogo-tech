@@ -179,7 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
             productsToRender.forEach(product => {
                 const priceArs = (parseFloat(product['Precio al CONTADO']) * usdToArsRate).toFixed(2);
                 const row = document.createElement('tr');
-                const imageUrl = product.Imagenes && product.Imagenes.length > 0 ? product.Imagenes[0] : 'https://via.placeholder.com/50';
+                const imageUrl = product.Imagenes && product.Imagenes.length > 0 ? product.Imagenes[0] : '/images/placeholder.png';
                 
                 if (!product.en_venta) {
                     row.classList.add('product-sold');
@@ -663,7 +663,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const planSelect = document.getElementById('sale-plan-select');
         const trackerDiv = document.getElementById('installments-tracker');
-        const startDateInput = document.getElementById('sale-start-date'); // Moved declaration here
 
         function renderInstallmentTracker() {
             const selectedPlanName = planSelect.value;
@@ -675,6 +674,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             let trackerHtml = `<h5>Seguimiento de Cuotas (${selectedPlan.months} cuotas)</h5>`;
+            const startDateInput = document.getElementById('sale-start-date');
             const startDate = new Date(startDateInput.value + 'T00:00:00'); // Ensure date is parsed correctly
 
             for (let i = 1; i <= selectedPlan.months; i++) {
@@ -696,7 +696,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         planSelect.addEventListener('change', renderInstallmentTracker);
-        startDateInput.addEventListener('change', renderInstallmentTracker); // Add this line
         renderInstallmentTracker(); // Initial render
         manageSaleModal.show();
     }
