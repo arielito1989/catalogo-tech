@@ -650,30 +650,43 @@ document.addEventListener('DOMContentLoaded', () => {
         addProductModal.show();
     }
 
-    async function handleDelete(productId) {
-        if (confirm('¿Estás seguro de que quieres eliminar este producto?')) {
-            showLoader();
-            try {
-                const response = await fetch(`/products/${productId}`, {
-                    method: 'DELETE',
-                });
+        let productIdToDelete = null; // Variable to store the ID of the product to be deleted
 
-                if (response.ok) {
-                    await loadProducts(); // Reload products from server
-                    showToast('Producto eliminado con éxito.');
-                } else {
-                    const errorData = await response.json();
-                    console.error('Error deleting product:', errorData.error);
-                    showToast(`Error al eliminar: ${errorData.error}`, 'danger');
-                }
-            } catch (error) {
-                console.error('Network error deleting product:', error);
-                showToast('Error de red al eliminar el producto.', 'danger');
-            } finally {
-                hideLoader();
-            }
-        }
+    async function handleDelete(productId) {
+        productIdToDelete = productId; // Store the ID
+        const deleteConfirmModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+        deleteConfirmModal.show();
     }
+
+    document.getElementById('confirm-delete-btn').addEventListener('click', async () => {
+        if (!productIdToDelete) return; // Should not happen
+
+        const deleteConfirmModal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
+        deleteConfirmModal.hide();
+
+        showLoader();
+        try {
+            const response = await fetch(`/products/${productIdToDelete}`, {
+                method: 'DELETE',
+            });
+
+            if (response.ok) {
+                currentSort = { column: null, direction: 'asc' }; // Reset sort to show newest first
+                await loadProducts(productIdToDelete); // Pass the ID to prioritize
+                showToast('Producto eliminado con éxito.');
+            } else {
+                const errorData = await response.json();
+                console.error('Error deleting product:', errorData.error);
+                showToast(`Error al eliminar: ${errorData.error}`, 'danger');
+            }
+        } catch (error) {
+            console.error('Network error deleting product:', error);
+            showToast('Error de red al eliminar el producto.', 'danger');
+        } finally {
+            hideLoader();
+            productIdToDelete = null; // Clear the stored ID
+        }
+    });
 
     // --- MODAL CONTENT FUNCTIONS ---
     function showDetails(product) {
