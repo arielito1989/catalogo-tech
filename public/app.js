@@ -316,6 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <button class="btn btn-sm btn-light view-details" data-id="${product.id}" title="Ver Detalles"><i class="fas fa-eye"></i></button>
                         <button class="btn btn-sm btn-info manage-sale" data-id="${product.id}" title="Gestionar Plan"><i class="fas fa-tasks"></i></button>
                         <button class="btn btn-sm btn-primary view-payment-summary" data-id="${product.id}" title="Ver Resumen de Pago"><i class="fas fa-money-check-alt"></i></button>
+                        <button class="btn btn-sm btn-danger delete-product" data-id="${product.id}" title="Eliminar"><i class="fas fa-trash"></i></button>
                     `;
                 } else {
                     // --- AVAILABLE ---
