@@ -171,15 +171,15 @@ document.addEventListener('DOMContentLoaded', () => {
         statusFilter.querySelector('option[value="vendido"]').textContent = `Vendido (${statusCounts.vendido})`;
     }
 
-    async function loadProducts() {
+    async function loadProducts(productIdToPrioritize = null) {
         showLoader();
         try {
             const response = await fetch('/products');
             if (!response.ok) throw new Error('Failed to fetch products');
             products = await response.json();
-            products.reverse(); // Reverse the array to show newest products first
+
             updateFilterCounts(); // Update counts after fetching
-            applyFiltersAndSort(); // Initial render with filters and sort
+            applyFiltersAndSort(productIdToPrioritize); // Pass the ID to prioritize
         } catch (error) {
             console.error('Error loading products:', error);
             showToast('No se pudieron cargar los productos.', 'danger');
@@ -190,7 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     
 
-    function applyFiltersAndSort() {
+    function applyFiltersAndSort(productIdToPrioritize = null) {
         let tempProducts = [...products];
 
         // Apply search filter
@@ -201,14 +201,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Apply category filter
         const selectedCategory = categoryFilter.value;
-        console.log(`Filtrando por categoría: ${selectedCategory}`); // Debugging line
         if (selectedCategory !== 'Todas las categorías') {
             tempProducts = tempProducts.filter(p => p.CATEGORIA === selectedCategory);
         }
 
         // Apply status filter
         const selectedStatus = statusFilter.value;
-        console.log(`Filtrando por estado: ${selectedStatus}`); // Debugging line
         if (selectedStatus !== 'Todos') {
             tempProducts = tempProducts.filter(p => {
                 const isSold = !p.en_venta;
@@ -220,6 +218,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (selectedStatus === 'vendido') return isSold;
                 return false;
             });
+        }
+
+        // Prioritize the product if no specific sort column is selected by the user
+        if (productIdToPrioritize && !currentSort.column) {
+            const index = tempProducts.findIndex(p => p.id === productIdToPrioritize);
+            if (index > -1) {
+                const [prioritizedProduct] = tempProducts.splice(index, 1);
+                tempProducts.unshift(prioritizedProduct);
+            }
         }
 
         // Apply sorting
@@ -238,6 +245,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 return currentSort.direction === 'asc' ? comparison : -comparison;
+            });
+        } else if (!productIdToPrioritize) { // Only apply default sort if no product is being prioritized
+            // Default sort: newest products first (by ID, which is timestamp-based)
+            tempProducts.sort((a, b) => {
+                const idA = parseInt(a.id.replace('prod-', ''));
+                const idB = parseInt(b.id.replace('prod-', ''));
+                return idB - idA; // Descending order
             });
         }
 
@@ -294,6 +308,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     actionsHtml = `
                         <button class="btn btn-sm btn-light view-details" data-id="${product.id}" title="Ver Detalles"><i class="fas fa-eye"></i></button>
                         <button class="btn btn-sm btn-primary view-payment-summary" data-id="${product.id}" title="Ver Resumen de Venta"><i class="fas fa-receipt"></i></button>
+                        <button class="btn btn-sm btn-danger delete-product" data-id="${product.id}" title="Eliminar"><i class="fas fa-trash"></i></button>
                     `;
                 } else if (product.plan_pago_elegido) {
                     // --- IN PAYMENT PLAN ---
@@ -504,7 +519,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 if (response.ok) {
-                    await loadProducts(); // Reload products from server
+                    currentSort = { column: null, direction: 'asc' }; // Reset sort to show newest first
+                    const productId = currentlyEditingId || productDataToSend.id; // Get the ID of the affected product
+                    await loadProducts(productId); // Pass the ID to prioritize
                     addProductModal.hide();
                     showToast(`Producto ${currentlyEditingId ? 'actualizado' : 'guardado'} con éxito.`);
                 } else {
@@ -584,7 +601,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 if (response.ok) {
-                    await loadProducts(); // Recargar para reflejar el cambio visual
+                    currentSort = { column: null, direction: 'asc' }; // Reset sort to show newest first
+                    await loadProducts(productId); // Pass the ID to prioritize
+                    showToast('Estado del producto actualizado.');
                     showToast('Estado del producto actualizado.');
                 } else {
                     const errorData = await response.json();
@@ -1037,7 +1056,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (response.ok) {
                 manageSaleModal.hide();
-                await loadProducts();
+                currentSort = { column: null, direction: 'asc' }; // Reset sort to show newest first
+                await loadProducts(currentManagingSaleId); // Pass the ID to prioritize
                 showToast('Cambios en la venta guardados con éxito.');
             } else {
                 const errorData = await response.json();
