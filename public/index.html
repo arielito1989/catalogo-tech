@@ -17,6 +17,13 @@
 </head>
 <body>
 
+    <!-- Loading Spinner Overlay -->
+    <div id="loading-overlay">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
     <!-- Login Section -->
     <div id="login-container" class="container-fluid">
         <div class="row justify-content-center align-items-center vh-100">
@@ -69,11 +76,7 @@
                         <div class="col-12 col-md-6 col-lg-3">
                             <select id="category-filter" class="form-select">
                                 <option value="Todas las categorías">Todas las categorías</option>
-                                <option value="Electronica">Electrónica</option>
-                                <option value="Telefonia">Telefonía</option>
-                                <option value="Electrodomesticos">Electrodomésticos</option>
-                                <option value="Perifericos">Periféricos</option>
-                                <option value="Informatica">Informática</option>
+                                <!-- Categories will be dynamically inserted here -->
                             </select>
                         </div>
                         <div class="col-12 col-md-6 col-lg-2">
@@ -100,8 +103,8 @@
                             <th>Imagen</th>
                             <th data-sort="Producto" class="sortable">Producto <i class="fas fa-sort"></i></th>
                             <th data-sort="CATEGORIA" class="sortable">Categoría <i class="fas fa-sort"></i></th>
-                            <th data-sort="Precio al CONTADO" class="sortable">Precio Contado (USD) <i class="fas fa-sort"></i></th>
-                            <th>Precio ARS</th>
+                            <th>Estado</th>
+                            <th data-sort="Precio al CONTADO" class="sortable">Precio (ARS) <i class="fas fa-sort"></i></th>
                             <th>Acciones</th>
                         </tr>
                     </thead>

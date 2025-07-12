@@ -22,6 +22,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const toastBody = toastLiveExample.querySelector('.toast-body');
     const toastHeader = toastLiveExample.querySelector('.toast-header');
 
+    const loadingOverlay = document.getElementById('loading-overlay');
+
+    // --- Utility Functions ---
+    function showLoader() {
+        loadingOverlay.classList.add('show');
+    }
+
+    function hideLoader() {
+        loadingOverlay.classList.remove('show');
+    }
+
+    function showToast(message, type = 'success') {
+        toastHeader.querySelector('strong').textContent = type === 'success' ? 'Éxito' : 'Error';
+        toastBody.textContent = message;
+
+        // Reset classes
+        toastLiveExample.className = 'toast'; 
+        toastHeader.className = 'toast-header';
+
+        const bgClass = type === 'success' ? 'text-bg-success' : 'text-bg-danger';
+        toastLiveExample.classList.add(bgClass);
+        
+        toastBootstrap.show();
+    }
+
     // Add/Edit Product Modal Elements
     const addProductModalEl = document.getElementById('addProductModal');
     const addProductModal = new bootstrap.Modal(addProductModalEl);
@@ -111,14 +136,55 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- MANEJO DE DATOS --- //
+    function updateFilterCounts() {
+        const categoryCounts = {};
+        const statusCounts = { disponible: 0, en_plan: 0, vendido: 0 };
+
+        products.forEach(p => {
+            // Count categories
+            categoryCounts[p.CATEGORIA] = (categoryCounts[p.CATEGORIA] || 0) + 1;
+
+            // Count statuses
+            if (!p.en_venta) {
+                statusCounts.vendido++;
+            } else if (p.plan_pago_elegido) {
+                statusCounts.en_plan++;
+            } else {
+                statusCounts.disponible++;
+            }
+        });
+
+        // Update category filter dynamically
+        const selectedCategory = categoryFilter.value;
+        categoryFilter.innerHTML = '<option value="Todas las categorías">Todas las categorías</option>'; // Reset
+        Object.keys(categoryCounts).sort().forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat;
+            option.textContent = `${cat} (${categoryCounts[cat]})`;
+            categoryFilter.appendChild(option);
+        });
+        categoryFilter.value = selectedCategory; // Restore selection
+
+        // Update status filter counts
+        statusFilter.querySelector('option[value="disponible"]').textContent = `Disponible (${statusCounts.disponible})`;
+        statusFilter.querySelector('option[value="en_plan"]').textContent = `En Plan de Pago (${statusCounts.en_plan})`;
+        statusFilter.querySelector('option[value="vendido"]').textContent = `Vendido (${statusCounts.vendido})`;
+    }
+
     async function loadProducts() {
+        showLoader();
         try {
             const response = await fetch('/products');
+            if (!response.ok) throw new Error('Failed to fetch products');
             products = await response.json();
+            products.reverse(); // Reverse the array to show newest products first
+            updateFilterCounts(); // Update counts after fetching
             applyFiltersAndSort(); // Initial render with filters and sort
         } catch (error) {
             console.error('Error loading products:', error);
-            // Optionally, display an error message to the user
+            showToast('No se pudieron cargar los productos.', 'danger');
+        } finally {
+            hideLoader();
         }
     }
 
@@ -203,116 +269,61 @@ document.addEventListener('DOMContentLoaded', () => {
             productsToRender.forEach(product => {
                 const priceArs = (parseFloat(product['Precio al CONTADO']) * usdToArsRate).toFixed(2);
                 const row = document.createElement('tr');
+
+                // Determine product status and apply classes/badges
+                let statusHtml = '';
                 let rowClass = '';
                 if (!product.en_venta) {
-                    rowClass = 'product-sold'; // Rojo
+                    rowClass = 'product-sold';
+                    statusHtml = `<span class="badge bg-danger">Vendido</span>`;
                 } else if (product.plan_pago_elegido) {
-                    rowClass = 'product-in-plan'; // Naranja
+                    rowClass = 'product-in-plan';
+                    statusHtml = `<span class="badge bg-warning text-dark">En Plan de Pago</span>`;
                 } else {
-                    rowClass = 'product-available'; // Verde
+                    rowClass = 'product-available';
+                    statusHtml = `<span class="badge bg-success">Disponible</span>`;
                 }
                 row.classList.add(rowClass);
+
                 const imageUrl = product.Imagenes && product.Imagenes.length > 0 ? product.Imagenes[0] : '/images/placeholder.png';
-                let statusHtml = ''; // Initialize statusHtml here
 
+                // Build contextual actions
+                let actionsHtml = '';
                 if (!product.en_venta) {
-                    rowClass = 'product-sold'; // Rojo
-                    if (product.plan_pago_elegido) {
-                        statusHtml = '<span class="badge bg-danger">Vendido (Plan de pago)</span>';
-                    } else {
-                        statusHtml = '<span class="badge bg-danger">Vendido (Al contado)</span>';
-                    }
+                    // --- SOLD --- 
+                    actionsHtml = `
+                        <button class="btn btn-sm btn-light view-details" data-id="${product.id}" title="Ver Detalles"><i class="fas fa-eye"></i></button>
+                        <button class="btn btn-sm btn-primary view-payment-summary" data-id="${product.id}" title="Ver Resumen de Venta"><i class="fas fa-receipt"></i></button>
+                    `;
                 } else if (product.plan_pago_elegido) {
-                    rowClass = 'product-in-plan'; // Naranja
-                    const plans = [
-                        { months: 3, interest: 0.50, name: 'Plan 3 Cuotas' },
-                        { months: 6, interest: 1.00, name: 'Plan 6 Cuotas' },
-                        { months: 9, interest: 1.50, name: 'Plan 9 Cuotas' },
-                        { months: 12, interest: 2.00, name: 'Plan Exclusivo' }
-                    ];
-                    const selectedPlan = plans.find(p => p.name === product.plan_pago_elegido);
-
-                    const startDate = new Date(product.fecha_inicio_pago + 'T00:00:00');
-                    const totalInstallments = selectedPlan ? selectedPlan.months : 0;
-                    const pagosRealizados = product.pagos_realizados || [];
-                    const cuotasPagadasCount = pagosRealizados.length;
-                    const remainingInstallments = totalInstallments - cuotasPagadasCount;
-
-                    let nextDueDate = 'N/A'; // Default if no next payment
-                    if (remainingInstallments > 0) {
-                        for (let i = 1; i <= totalInstallments; i++) {
-                            const isPaid = pagosRealizados.some(p => p.installment_number === i);
-                            if (!isPaid) {
-                                const dueDate = new Date(startDate);
-                                if (selectedPlan.name.includes('Cuotas')) { // Monthly plans
-                                    dueDate.setMonth(startDate.getMonth() + i);
-                                } else if (selectedPlan.name === 'quincenal') {
-                                    dueDate.setDate(startDate.getDate() + (i * 15));
-                                } else if (selectedPlan.name === 'semanal') {
-                                    dueDate.setDate(startDate.getDate() + (i * 7));
-                                }
-                                nextDueDate = dueDate.toLocaleDateString('es-AR');
-                                break; // Found the next unpaid installment
-                            }
-                        }
-                    } else {
-                        nextDueDate = 'Plan completado';
-                    }
-
-                    statusHtml = `
-                        <span class="badge bg-warning text-dark">
-                            ${product.plan_pago_elegido}
-                            <br>Cuotas restantes: ${remainingInstallments > 0 ? remainingInstallments : 0}
-                            <br>Próx. Venc: ${nextDueDate}
-                        </span>
+                    // --- IN PAYMENT PLAN ---
+                    actionsHtml = `
+                        <button class="btn btn-sm btn-light view-details" data-id="${product.id}" title="Ver Detalles"><i class="fas fa-eye"></i></button>
+                        <button class="btn btn-sm btn-info manage-sale" data-id="${product.id}" title="Gestionar Plan"><i class="fas fa-tasks"></i></button>
+                        <button class="btn btn-sm btn-primary view-payment-summary" data-id="${product.id}" title="Ver Resumen de Pago"><i class="fas fa-money-check-alt"></i></button>
                     `;
                 } else {
-                    rowClass = 'product-available'; // Verde
+                    // --- AVAILABLE ---
+                    actionsHtml = `
+                        <button class="btn btn-sm btn-light view-details" data-id="${product.id}" title="Ver Detalles"><i class="fas fa-eye"></i></button>
+                        <button class="btn btn-sm btn-info view-plan" data-id="${product.id}" title="Ver Planes de Pago"><i class="fas fa-credit-card"></i></button>
+                        <button class="btn btn-sm btn-success manage-sale" data-id="${product.id}" title="Vender / Iniciar Plan"><i class="fas fa-hand-holding-usd"></i></button>
+                        <button class="btn btn-sm btn-warning edit-product" data-id="${product.id}" title="Editar"><i class="fas fa-pencil-alt"></i></button>
+                        <button class="btn btn-sm btn-danger delete-product" data-id="${product.id}" title="Eliminar"><i class="fas fa-trash"></i></button>
+                    `;
                 }
-                row.classList.add(rowClass);
-
-                const actionsHtml = `
-                    <button class="btn btn-sm btn-info manage-sale" data-id="${product.id}" title="Gestionar Venta">
-                        <i class="fas fa-dolly"></i> Gestionar
-                    </button>
-                    <button class="btn btn-sm btn-primary view-payment-summary" data-id="${product.id}" title="Ver Resumen de Pago">
-                        <i class="fas fa-money-check-alt"></i> Resumen
-                    </button>
-                    <div class="form-check form-switch mt-2">
-                        <input class="form-check-input toggle-en-venta" type="checkbox" role="switch" id="toggle-${product.id}" data-id="${product.id}" ${product.en_venta ? 'checked' : ''}>
-                        <label class="form-check-label" for="toggle-${product.id}">En Venta</label>
-                    </div>
-                `;
 
                 row.innerHTML = `
-                    row.innerHTML = `
-                    row.innerHTML = `
-                    <td data-label="Imagen"><img src="${imageUrl}" alt="${product.Producto}" class="img-thumbnail" style="width: 50px; height: 50px; object-fit: cover;"></td>
-                    <td data-label="Producto" class="product-name">${product.Producto || ''} ${statusHtml}</td>
+                    <td data-label="Imagen"><img src="${imageUrl}" alt="${product.Producto}" class="img-thumbnail"></td>
+                    <td data-label="Producto" class="product-name">${product.Producto || ''}</td>
                     <td data-label="Categoría">${product.CATEGORIA || ''}</td>
-                    <td data-label="Precio Contado (USD)">${product['Precio al CONTADO'] || ''}</td>
-                    <td data-label="Precio ARS">${priceArs}</td>
+                    <td data-label="Estado">${statusHtml}</td>
+                    <td data-label="Precio (ARS)">${priceArs}</td>
                     <td data-label="Acciones">
-                        <div class="d-flex flex-wrap">
-                            <button class="btn btn-sm btn-light me-1 mb-1 view-details" data-id="${product.id}" title="Ver Detalles"><i class="fas fa-eye"></i></button>
-                            <button class="btn btn-sm btn-success me-1 mb-1 view-plan" data-id="${product.id}" title="Plan de Pagos"><i class="fas fa-credit-card"></i></button>
-                            <button class="btn btn-sm btn-warning me-1 mb-1 edit-product" data-id="${product.id}" title="Editar"><i class="fas fa-pencil-alt"></i></button>
-                            <button class="btn btn-sm btn-danger me-1 mb-1 delete-product" data-id="${product.id}" title="Eliminar"><i class="fas fa-trash"></i></button>
-                        </div>
-                        <hr class="my-1">
-                        <button class="btn btn-sm btn-info manage-sale w-100 mb-1" data-id="${product.id}" title="Gestionar Venta">
-                            <i class="fas fa-dolly"></i> Gestionar
-                        </button>
-                        <button class="btn btn-sm btn-primary view-payment-summary w-100 mb-1" data-id="${product.id}" title="Ver Resumen de Pago">
-                            <i class="fas fa-money-check-alt"></i> Resumen
-                        </button>
-                        <div class="form-check form-switch mt-2">
-                            <input class="form-check-input toggle-en-venta" type="checkbox" role="switch" id="toggle-${product.id}" data-id="${product.id}" ${product.en_venta ? 'checked' : ''}>
-                            <label class="form-check-label" for="toggle-${product.id}">En Venta</label>
+                        <div class="d-flex flex-wrap justify-content-end">
+                            ${actionsHtml}
                         </div>
                     </td>
-                `;
-                `;
                 `;
                 catalogTableBody.appendChild(row);
             });
@@ -364,13 +375,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const priceContadoInput = document.getElementById('productPriceContado');
     const priceArsInput = document.getElementById('productPriceArs');
     const pricePyInput = document.getElementById('productPricePY');
+    let preciseContadoUSD = null; // Holds high-precision USD value to prevent rounding errors
 
     function updatePrices(source) {
-        const contadoUSD = parseFloat(priceContadoInput.value);
-        const ars = parseFloat(priceArsInput.value);
-        const py = parseFloat(pricePyInput.value);
-
+        // When user types in USD field, they set the source of truth. Clear any high-precision temp value.
         if (source === 'contado') {
+            preciseContadoUSD = null; 
+            const contadoUSD = parseFloat(priceContadoInput.value);
             if (!isNaN(contadoUSD)) {
                 priceArsInput.value = (contadoUSD * usdToArsRate).toFixed(2);
                 pricePyInput.value = (contadoUSD / 2).toFixed(2);
@@ -379,22 +390,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 pricePyInput.value = '';
             }
         } else if (source === 'ars') {
+            const ars = parseFloat(priceArsInput.value);
             if (!isNaN(ars) && usdToArsRate > 0) {
                 const calculatedUsd = ars / usdToArsRate;
+                // Store the high-precision value
+                preciseContadoUSD = calculatedUsd; 
+                // Display the rounded value
                 priceContadoInput.value = calculatedUsd.toFixed(2);
                 pricePyInput.value = (calculatedUsd / 2).toFixed(2);
             } else {
                 priceContadoInput.value = '';
                 pricePyInput.value = '';
+                preciseContadoUSD = null;
             }
         } else if (source === 'py') {
+            const py = parseFloat(pricePyInput.value);
             if (!isNaN(py)) {
                 const calculatedUsd = py * 2;
+                // Store the high-precision value
+                preciseContadoUSD = calculatedUsd;
+                // Display the rounded value
                 priceContadoInput.value = calculatedUsd.toFixed(2);
                 priceArsInput.value = (calculatedUsd * usdToArsRate).toFixed(2);
             } else {
                 priceContadoInput.value = '';
                 priceArsInput.value = '';
+                preciseContadoUSD = null;
             }
         }
     }
@@ -433,6 +454,7 @@ document.addEventListener('DOMContentLoaded', () => {
     addProductModalEl.addEventListener('hidden.bs.modal', () => {
         addProductForm.reset();
         currentlyEditingId = null;
+        preciseContadoUSD = null; // Reset high-precision value
         addProductModalTitle.textContent = 'Agregar Nuevo Producto';
         removePriceEventListeners(); // Remove listeners when modal is closed
     });
@@ -452,7 +474,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const productData = {
             Producto: document.getElementById('productName').value,
             CATEGORIA: document.getElementById('productCategory').value,
-            "Precio al CONTADO": parseFloat(document.getElementById('productPriceContado').value) || 0,
+            // Use the high-precision value if it exists, otherwise use the (potentially rounded) input value.
+            "Precio al CONTADO": preciseContadoUSD !== null ? preciseContadoUSD : (parseFloat(document.getElementById('productPriceContado').value) || 0),
             "Precio PY": parseFloat(document.getElementById('productPricePY').value) || 0,
             // en_venta will be handled by the server on creation
         };
@@ -470,6 +493,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 productDataToSend.id = `prod-${new Date().getTime()}`;
             }
 
+            showLoader();
             try {
                 const response = await fetch(url, {
                     method: method,
@@ -480,28 +504,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 if (response.ok) {
-                    loadProducts(); // Reload products from server
+                    await loadProducts(); // Reload products from server
                     addProductModal.hide();
+                    showToast(`Producto ${currentlyEditingId ? 'actualizado' : 'guardado'} con éxito.`);
                 } else {
                     const errorData = await response.json();
                     console.error('Error saving product:', errorData.error);
-                    toastHeader.querySelector('small').textContent = 'Ahora';
-                    toastHeader.classList.remove('text-bg-success');
-                    toastHeader.classList.add('text-bg-danger');
-                    toastLiveExample.classList.remove('text-bg-success');
-                    toastLiveExample.classList.add('text-bg-danger');
-                    toastBody.innerHTML = `Error al guardar el producto: ${errorData.error}`;
-                    toastBootstrap.show();
+                    showToast(`Error al guardar: ${errorData.error}`, 'danger');
                 }
             } catch (error) {
                 console.error('Network error saving product:', error);
-            toastHeader.querySelector('small').textContent = 'Ahora';
-            toastHeader.classList.remove('text-bg-success');
-            toastHeader.classList.add('text-bg-danger');
-            toastLiveExample.classList.remove('text-bg-success');
-            toastLiveExample.classList.add('text-bg-danger');
-            toastBody.innerHTML = `Error de red al guardar el producto.`;
-            toastBootstrap.show();
+                showToast('Error de red al guardar el producto.', 'danger');
+            } finally {
+                hideLoader();
             }
         };
 
@@ -558,6 +573,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const productId = e.target.dataset.id;
             const en_venta = e.target.checked;
 
+            showLoader();
             try {
                 const response = await fetch(`/products/${productId}/status`, {
                     method: 'PUT',
@@ -568,29 +584,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 if (response.ok) {
-                    loadProducts(); // Recargar para reflejar el cambio visual
+                    await loadProducts(); // Recargar para reflejar el cambio visual
+                    showToast('Estado del producto actualizado.');
                 } else {
                     const errorData = await response.json();
                     console.error('Error updating product status:', errorData.error);
-                    toastHeader.querySelector('small').textContent = 'Ahora';
-                    toastHeader.classList.remove('text-bg-success');
-                    toastHeader.classList.add('text-bg-danger');
-                    toastLiveExample.classList.remove('text-bg-success');
-                    toastLiveExample.classList.add('text-bg-danger');
-                    toastBody.innerHTML = `Error al actualizar el estado del producto: ${errorData.error}`;
-                    toastBootstrap.show();
+                    showToast(`Error al actualizar: ${errorData.error}`, 'danger');
                     e.target.checked = !en_venta; // Revertir el switch si hay error
                 }
             } catch (error) {
                 console.error('Network error updating product status:', error);
-            toastHeader.querySelector('small').textContent = 'Ahora';
-            toastHeader.classList.remove('text-bg-success');
-            toastHeader.classList.add('text-bg-danger');
-            toastLiveExample.classList.remove('text-bg-success');
-            toastLiveExample.classList.add('text-bg-danger');
-            toastBody.innerHTML = `Error de red al actualizar el estado del producto.`;
-            toastBootstrap.show();
+                showToast('Error de red al actualizar el estado.', 'danger');
                 e.target.checked = !en_venta; // Revertir el switch si hay error
+            } finally {
+                hideLoader();
             }
         }
     });
@@ -625,33 +632,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function handleDelete(productId) {
         if (confirm('¿Estás seguro de que quieres eliminar este producto?')) {
+            showLoader();
             try {
                 const response = await fetch(`/products/${productId}`, {
                     method: 'DELETE',
                 });
 
                 if (response.ok) {
-                    loadProducts(); // Reload products from server
+                    await loadProducts(); // Reload products from server
+                    showToast('Producto eliminado con éxito.');
                 } else {
                     const errorData = await response.json();
                     console.error('Error deleting product:', errorData.error);
-                    toastHeader.querySelector('small').textContent = 'Ahora';
-                    toastHeader.classList.remove('text-bg-success');
-                    toastHeader.classList.add('text-bg-danger');
-                    toastLiveExample.classList.remove('text-bg-success');
-                    toastLiveExample.classList.add('text-bg-danger');
-                    toastBody.innerHTML = `Error al eliminar el producto: ${errorData.error}`;
-                    toastBootstrap.show();
+                    showToast(`Error al eliminar: ${errorData.error}`, 'danger');
                 }
             } catch (error) {
                 console.error('Network error deleting product:', error);
-            toastHeader.querySelector('small').textContent = 'Ahora';
-            toastHeader.classList.remove('text-bg-success');
-            toastHeader.classList.add('text-bg-danger');
-            toastLiveExample.classList.remove('text-bg-success');
-            toastLiveExample.classList.add('text-bg-danger');
-            toastBody.innerHTML = `Error de red al eliminar el producto.`;
-            toastBootstrap.show();
+                showToast('Error de red al eliminar el producto.', 'danger');
+            } finally {
+                hideLoader();
             }
         }
     }
@@ -659,53 +658,63 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- MODAL CONTENT FUNCTIONS ---
     function showDetails(product) {
         detailsModalTitle.textContent = `Detalles de: ${product.Producto}`;
-        const priceArs = (parseFloat(product['Precio al CONTADO']) * usdToArsRate).toFixed(2);
+        const priceContadoUSD = parseFloat(product['Precio al CONTADO']);
+        const pricePyUSD = parseFloat(product['Precio PY']);
+        const priceArs = (priceContadoUSD * usdToArsRate).toFixed(2);
 
         let imagesHtml = '';
         if (product.Imagenes && product.Imagenes.length > 0) {
             const totalImages = product.Imagenes.length;
             imagesHtml = `
-                <div id="productCarousel" class="carousel slide" data-bs-ride="carousel">
+                <div id="productDetailCarousel" class="carousel slide mb-4" data-bs-ride="carousel">
                     <div class="carousel-inner">
             `;
             product.Imagenes.forEach((imgSrc, index) => {
                 imagesHtml += `
                         <div class="carousel-item ${index === 0 ? 'active' : ''}">
                             ${totalImages > 1 ? `<div class="image-counter">${index + 1} / ${totalImages}</div>` : ''}
-                            <img src="${imgSrc}" class="d-block w-100" alt="${product.Producto} - Imagen ${index + 1}">
+                            <img src="${imgSrc}" class="d-block w-100" alt="${product.Producto} - Imagen ${index + 1}" style="max-height: 400px; object-fit: contain;">
                         </div>
                 `;
             });
             imagesHtml += `
                     </div>
                     ${totalImages > 1 ? `
-                    <button class="carousel-control-prev" type="button" data-bs-target="#productCarousel" data-bs-slide="prev">
+                    <button class="carousel-control-prev" type="button" data-bs-target="#productDetailCarousel" data-bs-slide="prev">
                         <span class="carousel-control-prev-icon" aria-hidden="true"></span>
                         <span class="visually-hidden">Previous</span>
                     </button>
-                    <button class="carousel-control-next" type="button" data-bs-target="#productCarousel" data-bs-slide="next">
+                    <button class="carousel-control-next" type="button" data-bs-target="#productDetailCarousel" data-bs-slide="next">
                         <span class="carousel-control-next-icon" aria-hidden="true"></span>
                         <span class="visually-hidden">Next</span>
                     </button>
                     ` : ''}
                 </div>
-                <hr>
             `;
         } else {
-            imagesHtml = `<img src="https://via.placeholder.com/150" alt="${product.Producto}" class="img-fluid rounded mb-3"><hr>`;
+            imagesHtml = `<div class="text-center mb-4"><img src="/images/placeholder.png" alt="${product.Producto}" class="img-fluid rounded" style="max-height: 250px;"></div>`;
         }
 
         detailsModalBody.innerHTML = `
-            <div class="row">
-                <div class="col-12 mb-3">
-                    ${imagesHtml}
-                </div>
-                <div class="col-12">
-                    <p><strong>Categoría:</strong> ${product.CATEGORIA}</p>
-                    <p><strong>Precio PY:</strong> ${product['Precio PY']} USD</p>
-                    <p><strong>Precio Contado:</strong> ${product['Precio al CONTADO']} USD / ${priceArs} ARS</p>
-                </div>
-            </div>
+            ${imagesHtml}
+            <h5 class="border-bottom pb-2 mb-3">Información del Producto</h5>
+            <p><strong>Categoría:</strong> ${product.CATEGORIA}</p>
+            
+            <h5 class="border-bottom pb-2 mt-4 mb-3">Precios</h5>
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    Precio Contado (ARS)
+                    <span class="badge bg-primary rounded-pill fs-6">$ ${priceArs}</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    Precio Contado (USD)
+                    <span class="badge bg-secondary rounded-pill">$ ${priceContadoUSD.toFixed(2)}</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    Precio PY (USD)
+                    <span class="badge bg-secondary rounded-pill">$ ${pricePyUSD.toFixed(2)}</span>
+                </li>
+            </ul>
         `;
         detailsModal.show();
     }
@@ -740,49 +749,55 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // --- Case 1: Product is SOLD ---
         if (!product.en_venta) {
-            setToastStyle('info');
+            detailsModalTitle.textContent = `Resumen de Venta: ${product.Producto}`;
             let summaryHtml = '';
 
             if (product.plan_pago_elegido) {
-                // Sold via payment plan
+                // --- Sold via payment plan ---
                 const selectedPlan = plans.find(p => p.name === product.plan_pago_elegido);
                 const finalPrice = priceContado * (1 + (selectedPlan?.interest || 0));
                 const finalPriceArs = (finalPrice * exchangeRate).toFixed(2);
+                const pagos = product.pagos_realizados || [];
                 
+                let paymentsListHtml = '<ul class="list-group list-group-flush mt-3">';
+                if (pagos.length > 0) {
+                    pagos.sort((a, b) => a.installment_number - b.installment_number).forEach(pago => {
+                        const paymentDate = new Date(pago.payment_date + 'T00:00:00').toLocaleDateString('es-AR');
+                        paymentsListHtml += `<li class="list-group-item d-flex justify-content-between align-items-center">Cuota ${pago.installment_number} <span class="badge bg-secondary">Pagado: ${paymentDate}</span></li>`;
+                    });
+                } else {
+                    paymentsListHtml += '<li class="list-group-item">No se encontraron registros de pago.</li>';
+                }
+                paymentsListHtml += '</ul>';
+
                 summaryHtml = `
-                    <div class='container-fluid'>
-                        <div class='row mb-2'>
-                            <div class='col'>
-                                <strong>Vendido: ${product.Producto}</strong><br>
-                                <small>${product.plan_pago_elegido}</small>
-                            </div>
-                        </div>
-                        <hr class='my-1'>
-                        <div class='d-flex justify-content-between align-items-center'>
-                            <span>Monto Total Pagado:</span>
-                            <span class='fw-bold fs-5'>${finalPriceArs} ARS</span>
-                        </div>
-                    </div>`;
+                    <div class="alert alert-success">
+                        <strong>¡Venta Completada!</strong>
+                    </div>
+                    <p>
+                        Este producto fue vendido bajo el <strong>${product.plan_pago_elegido}</strong>.
+                        El monto total final fue de <strong>${finalPriceArs} ARS</strong>.
+                    </p>
+                    <hr>
+                    <h5>Historial de Pagos</h5>
+                    ${paymentsListHtml}
+                `;
+
             } else {
-                // Sold as a one-time cash payment
+                // --- Sold as a one-time cash payment ---
                 const finalPriceArs = (priceContado * exchangeRate).toFixed(2);
                 summaryHtml = `
-                    <div class='container-fluid'>
-                        <div class='row mb-2'>
-                            <div class='col'>
-                                <strong>Vendido (Contado): ${product.Producto}</strong>
-                            </div>
-                        </div>
-                        <hr class='my-1'>
-                        <div class='d-flex justify-content-between align-items-center'>
-                            <span>Monto Total Pagado:</span>
-                            <span class='fw-bold fs-5'>${finalPriceArs} ARS</span>
-                        </div>
-                    </div>`;
+                     <div class="alert alert-success">
+                        <strong>¡Venta Completada!</strong>
+                    </div>
+                    <p>
+                        Este producto fue vendido al contado por un total de <strong>${finalPriceArs} ARS</strong>.
+                    </p>
+                `;
             }
-            toastBody.innerHTML = summaryHtml;
-            toastBootstrap.show();
-            return;
+            detailsModalBody.innerHTML = summaryHtml;
+            detailsModal.show();
+            return; // Stop execution here for sold items
         }
 
         // --- Case 2: Product has an active PAYMENT PLAN ---
@@ -1045,9 +1060,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
         });
-        const cuotas_pagadas = paidInstallments.length;
 
         let response;
+        showLoader();
         try {
             if (esVentaContado) {
                 // Marcar como vendido
@@ -1058,26 +1073,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             } else {
                 // Actualizar datos de la venta a plazos
-                
-                const product = products.find(p => p.id === currentManagingSaleId);
-                const plans = [
-                    { months: 3, interest: 0.50, name: 'Plan 3 Cuotas' },
-                    { months: 6, interest: 1.00, name: 'Plan 6 Cuotas' },
-                    { months: 9, interest: 1.50, name: 'Plan 9 Cuotas' },
-                    { months: 12, interest: 2.00, name: 'Plan Exclusivo' }
-                ];
-                const selectedPlan = plans.find(p => p.name === plan_pago_elegido);
-                const priceContado = parseFloat(product['Precio al CONTADO']);
-                const finalPrice = priceContado * (1 + selectedPlan.interest);
-                const installmentValue = finalPrice / selectedPlan.months;
-                const valor_cuota_ars = installmentValue * usdToArsRate;
-
                 const saleData = {
                     plan_pago_elegido,
-                    cuotas_pagadas,
                     fecha_inicio_pago: document.getElementById('sale-start-date').value,
-                    valor_cuota_ars,
-                    pagos_realizados: paidInstallments // New field to send to server
+                    pagos_realizados: paidInstallments
                 };
 
                 response = await fetch(`/products/${currentManagingSaleId}/sale`, {
@@ -1089,64 +1088,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (response.ok) {
                 manageSaleModal.hide();
-
-                // Mostrar alerta de éxito solo para planes a plazos
-                if (!esVentaContado) {
-                    const product = products.find(p => p.id === currentManagingSaleId);
-                    const plans = [
-                        { months: 3, interest: 0.50, name: 'Plan 3 Cuotas' },
-                        { months: 6, interest: 1.00, name: 'Plan 6 Cuotas' },
-                        { months: 9, interest: 1.50, name: 'Plan 9 Cuotas' },
-                        { months: 12, interest: 2.00, name: 'Plan Exclusivo' }
-                    ];
-                    const selectedPlan = plans.find(p => p.name === plan_pago_elegido);
-                    const priceContado = parseFloat(product['Precio al CONTADO']);
-
-                    if (product && selectedPlan && !isNaN(priceContado)) {
-                        const finalPrice = priceContado * (1 + selectedPlan.interest);
-                        const installmentValue = finalPrice / selectedPlan.months;
-                        const installmentValueArs = installmentValue * usdToArsRate;
-
-                        toastHeader.querySelector('small').textContent = 'Ahora';
-                        toastHeader.classList.remove('text-bg-danger');
-                        toastHeader.classList.add('text-bg-success');
-                        toastLiveExample.classList.remove('text-bg-danger');
-                        toastLiveExample.classList.add('text-bg-success');
-                        toastBody.innerHTML = `
-                            ¡Plan de pago guardado con éxito!<br><br>
-                            <strong>Producto:</strong> ${product.Producto}<br>
-                            <strong>Plan:</strong> ${selectedPlan.name}<br>
-                            <hr>
-                            <strong>Cuotas pagadas:</strong> ${cuotas_pagadas}<br>
-                            <strong>Cuotas restantes:</strong> ${selectedPlan.months - cuotas_pagadas}<br>
-                            <strong>Valor de cada cuota:</strong><br>
-                            ${installmentValueArs.toFixed(2)} ARS<br>
-                            ${installmentValue.toFixed(2)} USD
-                        `;
-                        toastBootstrap.show();
-                    }
-                }
-                
-                loadProducts(); // Recargar productos después de la alerta
+                await loadProducts();
+                showToast('Cambios en la venta guardados con éxito.');
             } else {
                 const errorData = await response.json();
-                toastHeader.querySelector('small').textContent = 'Ahora';
-                toastHeader.classList.remove('text-bg-success');
-                toastHeader.classList.add('text-bg-danger');
-                toastLiveExample.classList.remove('text-bg-success');
-                toastLiveExample.classList.add('text-bg-danger');
-                toastBody.innerHTML = `Error al guardar los cambios: ${errorData.error}`;
-                toastBootstrap.show();
+                showToast(`Error al guardar los cambios: ${errorData.error}`, 'danger');
             }
         } catch (error) {
             console.error('Error de red al guardar los cambios:', error);
-            toastHeader.querySelector('small').textContent = 'Ahora';
-            toastHeader.classList.remove('text-bg-success');
-            toastHeader.classList.add('text-bg-danger');
-            toastLiveExample.classList.remove('text-bg-success');
-            toastLiveExample.classList.add('text-bg-danger');
-            toastBody.innerHTML = `Error de red al guardar los cambios.`;
-            toastBootstrap.show();
+            showToast('Error de red al guardar los cambios.', 'danger');
+        } finally {
+            hideLoader();
         }
     });
 
