@@ -747,59 +747,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const priceContado = parseFloat(product['Precio al CONTADO']);
         const exchangeRate = product.exchange_rate_at_sale || usdToArsRate;
 
-        // --- Case 1: Product is SOLD ---
-        if (!product.en_venta) {
-            detailsModalTitle.textContent = `Resumen de Venta: ${product.Producto}`;
-            let summaryHtml = '';
-
-            if (product.plan_pago_elegido) {
-                // --- Sold via payment plan ---
-                const selectedPlan = plans.find(p => p.name === product.plan_pago_elegido);
-                const finalPrice = priceContado * (1 + (selectedPlan?.interest || 0));
-                const finalPriceArs = (finalPrice * exchangeRate).toFixed(2);
-                const pagos = product.pagos_realizados || [];
-                
-                let paymentsListHtml = '<ul class="list-group list-group-flush mt-3">';
-                if (pagos.length > 0) {
-                    pagos.sort((a, b) => a.installment_number - b.installment_number).forEach(pago => {
-                        const paymentDate = new Date(pago.payment_date + 'T00:00:00').toLocaleDateString('es-AR');
-                        paymentsListHtml += `<li class="list-group-item d-flex justify-content-between align-items-center">Cuota ${pago.installment_number} <span class="badge bg-secondary">Pagado: ${paymentDate}</span></li>`;
-                    });
-                } else {
-                    paymentsListHtml += '<li class="list-group-item">No se encontraron registros de pago.</li>';
-                }
-                paymentsListHtml += '</ul>';
-
-                summaryHtml = `
-                    <div class="alert alert-success">
-                        <strong>¡Venta Completada!</strong>
-                    </div>
-                    <p>
-                        Este producto fue vendido bajo el <strong>${product.plan_pago_elegido}</strong>.
-                        El monto total final fue de <strong>${finalPriceArs} ARS</strong>.
-                    </p>
-                    <hr>
-                    <h5>Historial de Pagos</h5>
-                    ${paymentsListHtml}
-                `;
-
-            } else {
-                // --- Sold as a one-time cash payment ---
-                const finalPriceArs = (priceContado * exchangeRate).toFixed(2);
-                summaryHtml = `
-                     <div class="alert alert-success">
-                        <strong>¡Venta Completada!</strong>
-                    </div>
-                    <p>
-                        Este producto fue vendido al contado por un total de <strong>${finalPriceArs} ARS</strong>.
-                    </p>
-                `;
-            }
-            detailsModalBody.innerHTML = summaryHtml;
-            detailsModal.show();
-            return; // Stop execution here for sold items
-        }
-
         // --- Case 2: Product has an active PAYMENT PLAN ---
         const selectedPlan = plans.find(p => p.name === product.plan_pago_elegido);
         if (product.plan_pago_elegido && selectedPlan) {
@@ -959,10 +906,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            const exchangeRate = product.exchange_rate_at_sale || usdToArsRate;
             const finalPrice = priceContado * (1 + selectedPlan.interest);
             const installmentValue = finalPrice / selectedPlan.months;
-            const installmentValueArs = (installmentValue * (product.exchange_rate_at_sale || usdToArsRate)).toFixed(2);
-            const finalPriceArs = (finalPrice * (product.exchange_rate_at_sale || usdToArsRate)).toFixed(2);
+            const installmentValueArs = (installmentValue * exchangeRate).toFixed(2);
+            const finalPriceArs = (finalPrice * exchangeRate).toFixed(2);
 
             let trackerHtml = `
                 <h5>Seguimiento de Cuotas (${selectedPlan.months} cuotas)</h5>
@@ -1076,7 +1024,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const saleData = {
                     plan_pago_elegido,
                     fecha_inicio_pago: document.getElementById('sale-start-date').value,
-                    pagos_realizados: paidInstallments
+                    pagos_realizados: paidInstallments,
+                    exchange_rate_at_sale: usdToArsRate // Freeze the exchange rate
                 };
 
                 response = await fetch(`/products/${currentManagingSaleId}/sale`, {
