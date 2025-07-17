@@ -500,8 +500,9 @@ document.addEventListener('DOMContentLoaded', () => {
             Producto: document.getElementById('productName').value,
             CATEGORIA: document.getElementById('productCategory').value,
             // Use the high-precision value if it exists, otherwise use the (potentially rounded) input value.
-            "Precio al CONTADO": preciseContadoUSD !== null ? preciseContadoUSD : (parseFloat(document.getElementById('productPriceContado').value) || 0),
-            "Precio PY": parseFloat(document.getElementById('productPricePY').value) || 0,
+            // CRITICAL FIX: Round the USD price to 2 decimal places before saving to prevent floating point issues.
+            "Precio al CONTADO": parseFloat((preciseContadoUSD !== null ? preciseContadoUSD : (parseFloat(document.getElementById('productPriceContado').value) || 0)).toFixed(2)),
+            "Precio PY": parseFloat((parseFloat(document.getElementById('productPricePY').value) || 0).toFixed(2)),
             // en_venta will be handled by the server on creation
             exchange_rate_at_creation: usdToArsRate // Add the current exchange rate
         };
