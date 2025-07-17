@@ -281,7 +281,6 @@ document.addEventListener('DOMContentLoaded', () => {
             noProductsMessage.classList.add('d-none');
             catalogTableBody.innerHTML = '';
             productsToRender.forEach(product => {
-                productsToRender.forEach(product => {
                 const displayRate = product.exchange_rate_at_creation || usdToArsRate;
                 const priceArsValue = Math.floor((parseFloat(product['Precio al CONTADO']) * displayRate) * 100) / 100;
                 const priceArs = priceArsValue.toFixed(2);
