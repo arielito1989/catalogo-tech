@@ -282,8 +282,7 @@ document.addEventListener('DOMContentLoaded', () => {
             catalogTableBody.innerHTML = '';
             productsToRender.forEach(product => {
                 const displayRate = product.exchange_rate_at_creation || usdToArsRate;
-                const priceArsValue = Math.floor((parseFloat(product['Precio al CONTADO']) * displayRate));
-                const priceArs = Math.round(priceArsValue);
+                const priceArs = Math.round(parseFloat(product['Precio al CONTADO']) * displayRate);
                 const row = document.createElement('tr');
 
                 // Determine product status and apply classes/badges
@@ -500,8 +499,7 @@ document.addEventListener('DOMContentLoaded', () => {
             Producto: document.getElementById('productName').value,
             CATEGORIA: document.getElementById('productCategory').value,
             // Use the high-precision value if it exists, otherwise use the (potentially rounded) input value.
-            // CRITICAL FIX: Round the USD price to 2 decimal places before saving to prevent floating point issues.
-            "Precio al CONTADO": parseFloat((preciseContadoUSD !== null ? preciseContadoUSD : (parseFloat(document.getElementById('productPriceContado').value) || 0)).toFixed(2)),
+            "Precio al CONTADO": preciseContadoUSD !== null ? preciseContadoUSD : (parseFloat(document.getElementById('productPriceContado').value) || 0),
             "Precio PY": parseFloat((parseFloat(document.getElementById('productPricePY').value) || 0).toFixed(2)),
             // en_venta will be handled by the server on creation
             exchange_rate_at_creation: usdToArsRate // Add the current exchange rate
@@ -651,8 +649,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Calculate and set ARS price using the stored rate if available
         const displayRate = product.exchange_rate_at_creation || usdToArsRate;
         if (!isNaN(priceContado)) {
-            const priceArsValue = Math.floor((priceContado * displayRate));
-            document.getElementById('productPriceArs').value = Math.round(priceArsValue);
+            document.getElementById('productPriceArs').value = Math.round(priceContado * displayRate);
         } else {
             document.getElementById('productPriceArs').value = '';
         }
@@ -707,7 +704,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const priceContadoUSD = parseFloat(product['Precio al CONTADO']);
         const pricePyUSD = parseFloat(product['Precio PY']);
         const displayRate = product.exchange_rate_at_creation || usdToArsRate;
-        const priceArs = Math.round((priceContadoUSD * displayRate));
+        const priceArs = Math.round(priceContadoUSD * displayRate);
 
         let imagesHtml = '';
         if (product.Imagenes && product.Imagenes.length > 0) {
