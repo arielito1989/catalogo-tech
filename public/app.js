@@ -47,6 +47,26 @@ document.addEventListener('DOMContentLoaded', () => {
         toastBootstrap.show();
     }
 
+    // Helper function to format ARS prices for display (truncate and remove .00 if not needed)
+    function formatArsPriceForDisplay(value) {
+        // Truncate to 2 decimal places
+        const truncatedValue = Math.floor(value * 100) / 100;
+        // Convert to string with 2 decimal places
+        let formatted = truncatedValue.toFixed(2);
+        // If the decimal part is ".00", remove it
+        if (formatted.endsWith('.00')) {
+            return formatted.slice(0, -3); // Remove ".00"
+        }
+        return formatted;
+    }
+
+    // Helper to truncate to a higher precision for internal calculations/storage
+    const truncateForInternal = (num, precision) => {
+        if (isNaN(num)) return '';
+        const factor = Math.pow(10, precision);
+        return Math.floor(num * factor) / factor;
+    };
+
     // Add/Edit Product Modal Elements
     const addProductModalEl = document.getElementById('addProductModal');
     const addProductModal = new bootstrap.Modal(addProductModalEl);
@@ -282,8 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
             catalogTableBody.innerHTML = '';
             productsToRender.forEach(product => {
                 const displayRate = product.exchange_rate_at_creation || usdToArsRate;
-                const priceArsValue = Math.floor((parseFloat(product['Precio al CONTADO']) * displayRate) * 100) / 100;
-                const priceArs = priceArsValue.toFixed(2);
+                const priceArs = formatArsPriceForDisplay(priceContadoUSD * displayRate);
                 const row = document.createElement('tr');
 
                 // Determine product status and apply classes/badges
@@ -408,8 +427,8 @@ document.addEventListener('DOMContentLoaded', () => {
             preciseContadoUSD = null; 
             const contadoUSD = parseFloat(priceContadoInput.value);
             if (!isNaN(contadoUSD)) {
-                priceArsInput.value = truncate(contadoUSD * usdToArsRate);
-                pricePyInput.value = truncate(contadoUSD / 2);
+                priceArsInput.value = formatArsPriceForDisplay(contadoUSD * usdToArsRate);
+                pricePyInput.value = (contadoUSD / 2).toFixed(2);
             } else {
                 priceArsInput.value = '';
                 pricePyInput.value = '';
@@ -417,12 +436,12 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (source === 'ars') {
             const ars = parseFloat(priceArsInput.value);
             if (!isNaN(ars) && usdToArsRate > 0) {
-                const calculatedUsd = ars / usdToArsRate;
+                const calculatedUsd = truncateForInternal(ars / usdToArsRate, 6);
                 // Store the high-precision value
                 preciseContadoUSD = calculatedUsd; 
                 // Display the truncated value
-                priceContadoInput.value = truncate(calculatedUsd);
-                pricePyInput.value = truncate(calculatedUsd / 2);
+                priceContadoInput.value = calculatedUsd.toFixed(2);
+                pricePyInput.value = (calculatedUsd / 2).toFixed(2);
             } else {
                 priceContadoInput.value = '';
                 pricePyInput.value = '';
@@ -431,12 +450,12 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (source === 'py') {
             const py = parseFloat(pricePyInput.value);
             if (!isNaN(py)) {
-                const calculatedUsd = py * 2;
+                const calculatedUsd = truncateForInternal(py * 2, 6);
                 // Store the high-precision value
                 preciseContadoUSD = calculatedUsd;
                 // Display the truncated value
-                priceContadoInput.value = truncate(calculatedUsd);
-                priceArsInput.value = truncate(calculatedUsd * usdToArsRate);
+                priceContadoInput.value = calculatedUsd.toFixed(2);
+                priceArsInput.value = formatArsPriceForDisplay(calculatedUsd * usdToArsRate);
             } else {
                 priceContadoInput.value = '';
                 priceArsInput.value = '';
@@ -500,9 +519,8 @@ document.addEventListener('DOMContentLoaded', () => {
             Producto: document.getElementById('productName').value,
             CATEGORIA: document.getElementById('productCategory').value,
             // Use the high-precision value if it exists, otherwise use the (potentially rounded) input value.
-            // CRITICAL FIX: Round the USD price to 2 decimal places before saving to prevent floating point issues.
-            "Precio al CONTADO": parseFloat((preciseContadoUSD !== null ? preciseContadoUSD : (parseFloat(document.getElementById('productPriceContado').value) || 0)).toFixed(2)),
-            "Precio PY": parseFloat((parseFloat(document.getElementById('productPricePY').value) || 0).toFixed(2)),
+            "Precio al CONTADO": truncateForInternal(preciseContadoUSD !== null ? preciseContadoUSD : (parseFloat(document.getElementById('productPriceContado').value) || 0), 6),
+            "Precio PY": truncateForInternal(parseFloat(document.getElementById('productPricePY').value) || 0, 6),
             // en_venta will be handled by the server on creation
             exchange_rate_at_creation: usdToArsRate // Add the current exchange rate
         };
@@ -651,8 +669,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Calculate and set ARS price using the stored rate if available
         const displayRate = product.exchange_rate_at_creation || usdToArsRate;
         if (!isNaN(priceContado)) {
-            const priceArsValue = Math.floor((priceContado * displayRate) * 100) / 100;
-            document.getElementById('productPriceArs').value = priceArsValue.toFixed(2);
+            document.getElementById('productPriceArs').value = formatArsPriceForDisplay(priceContado * displayRate);
         } else {
             document.getElementById('productPriceArs').value = '';
         }
@@ -707,7 +724,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const priceContadoUSD = parseFloat(product['Precio al CONTADO']);
         const pricePyUSD = parseFloat(product['Precio PY']);
         const displayRate = product.exchange_rate_at_creation || usdToArsRate;
-        const priceArs = (Math.floor((priceContadoUSD * displayRate) * 100) / 100).toFixed(2);
+        const priceArs = formatArsPriceForDisplay(priceContadoUSD * displayRate);
 
         let imagesHtml = '';
         if (product.Imagenes && product.Imagenes.length > 0) {
@@ -805,8 +822,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const cuotasPagadasCount = pagosRealizados.length;
             const cuotasRestantes = selectedPlan.months - cuotasPagadasCount;
 
-            const montoTotalAbonadoArs = (cuotasPagadasCount * installmentValueArs).toFixed(2);
-            const montoRestanteTotalArs = (cuotasRestantes * installmentValueArs).toFixed(2);
+            const montoTotalAbonadoArs = formatArsPriceForDisplay(cuotasPagadasCount * installmentValueArs);
+            const montoRestanteTotalArs = formatArsPriceForDisplay(cuotasRestantes * installmentValueArs);
 
             setToastStyle('success');
             toastBody.innerHTML = `
@@ -826,7 +843,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <hr class='my-1'>
                     <div class='d-flex justify-content-between align-items-center'>
                         <span>Valor Cuota:</span>
-                        <span class='fw-bold fs-5'>${installmentValueArs.toFixed(2)} ARS</span>
+                        <span class='fw-bold fs-5'>${formatArsPriceForDisplay(installmentValueArs)} ARS</span>
                     </div>
                 </div>`;
             toastBootstrap.show();
@@ -844,7 +861,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isNaN(priceContado)) return '<p class="text-danger">El precio del producto no es válido.</p>';
 
         const displayRate = product.exchange_rate_at_creation || usdToArsRate;
-        const priceContadoArs = Math.floor((priceContado * displayRate) * 100) / 100;
+        const priceContadoArs = formatArsPriceForDisplay(priceContado * displayRate);
 
         const plans = [
             { months: 3, interest: 0.50, name: 'Plan 3 Cuotas' },
@@ -855,7 +872,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let tableHtml = `
             <h5>Planes de Financiación</h5>
-            <p>Precio Contado: <strong>${priceContado.toFixed(2)} USD / ${priceContadoArs.toFixed(2)} ARS</strong></p>
+            <p>Precio Contado: <strong>${priceContado.toFixed(2)} USD / ${priceContadoArs} ARS</strong></p>
             <table class="table table-bordered table-sm">
                 <thead class="table-light">
                     <tr>
@@ -870,15 +887,15 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const plan of plans) {
             const finalPrice = priceContado * (1 + plan.interest);
             const installmentValue = finalPrice / plan.months;
-            const finalPriceArs = Math.floor((finalPrice * displayRate) * 100) / 100;
-            const installmentValueArs = Math.floor((installmentValue * displayRate) * 100) / 100;
+            const finalPriceArs = formatArsPriceForDisplay(finalPrice * displayRate);
+            const installmentValueArs = formatArsPriceForDisplay(installmentValue * displayRate);
 
             tableHtml += `
                 <tr>
                     <td><strong>${plan.name}</strong></td>
                     <td>${(plan.interest * 100).toFixed(0)}%</td>
-                    <td>${installmentValue.toFixed(2)} / ${installmentValueArs.toFixed(2)}</td>
-                    <td>${finalPrice.toFixed(2)} / ${finalPriceArs.toFixed(2)}</td>
+                    <td>${installmentValue.toFixed(2)} / ${installmentValueArs}</td>
+                    <td>${finalPrice.toFixed(2)} / ${finalPriceArs}</td>
                 </tr>`;
         }
 
@@ -959,8 +976,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const exchangeRate = product.exchange_rate_at_sale || usdToArsRate;
             const finalPrice = priceContado * (1 + selectedPlan.interest);
             const installmentValue = finalPrice / selectedPlan.months;
-            const installmentValueArs = (Math.floor((installmentValue * exchangeRate) * 100) / 100).toFixed(2);
-            const finalPriceArs = (Math.floor((finalPrice * exchangeRate) * 100) / 100).toFixed(2);
+            const installmentValueArs = formatArsPriceForDisplay(installmentValue * exchangeRate);
+            const finalPriceArs = formatArsPriceForDisplay(finalPrice * exchangeRate);
 
             let trackerHtml = `
                 <h5>Seguimiento de Cuotas (${selectedPlan.months} cuotas)</h5>
