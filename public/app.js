@@ -395,13 +395,20 @@ document.addEventListener('DOMContentLoaded', () => {
     let preciseContadoUSD = null; // Holds high-precision USD value to prevent rounding errors
 
     function updatePrices(source) {
+        // Helper to truncate to 2 decimal places without rounding up, preventing issues like .01 artifacts.
+        const truncate = (num) => {
+            if (isNaN(num)) return '';
+            // Multiplying and dividing by 100 handles floating point inaccuracies.
+            return Math.floor(num * 100) / 100;
+        };
+
         // When user types in USD field, they set the source of truth. Clear any high-precision temp value.
         if (source === 'contado') {
             preciseContadoUSD = null; 
             const contadoUSD = parseFloat(priceContadoInput.value);
             if (!isNaN(contadoUSD)) {
-                priceArsInput.value = (contadoUSD * usdToArsRate).toFixed(2);
-                pricePyInput.value = (contadoUSD / 2).toFixed(2);
+                priceArsInput.value = truncate(contadoUSD * usdToArsRate);
+                pricePyInput.value = truncate(contadoUSD / 2);
             } else {
                 priceArsInput.value = '';
                 pricePyInput.value = '';
@@ -412,9 +419,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const calculatedUsd = ars / usdToArsRate;
                 // Store the high-precision value
                 preciseContadoUSD = calculatedUsd; 
-                // Display the rounded value
-                priceContadoInput.value = calculatedUsd.toFixed(2);
-                pricePyInput.value = (calculatedUsd / 2).toFixed(2);
+                // Display the truncated value
+                priceContadoInput.value = truncate(calculatedUsd);
+                pricePyInput.value = truncate(calculatedUsd / 2);
             } else {
                 priceContadoInput.value = '';
                 pricePyInput.value = '';
@@ -426,9 +433,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const calculatedUsd = py * 2;
                 // Store the high-precision value
                 preciseContadoUSD = calculatedUsd;
-                // Display the rounded value
-                priceContadoInput.value = calculatedUsd.toFixed(2);
-                priceArsInput.value = (calculatedUsd * usdToArsRate).toFixed(2);
+                // Display the truncated value
+                priceContadoInput.value = truncate(calculatedUsd);
+                priceArsInput.value = truncate(calculatedUsd * usdToArsRate);
             } else {
                 priceContadoInput.value = '';
                 priceArsInput.value = '';
