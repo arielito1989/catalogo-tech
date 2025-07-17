@@ -281,8 +281,10 @@ document.addEventListener('DOMContentLoaded', () => {
             noProductsMessage.classList.add('d-none');
             catalogTableBody.innerHTML = '';
             productsToRender.forEach(product => {
+                productsToRender.forEach(product => {
                 const displayRate = product.exchange_rate_at_creation || usdToArsRate;
-                const priceArs = (parseFloat(product['Precio al CONTADO']) * displayRate).toFixed(2);
+                const priceArsValue = Math.floor((parseFloat(product['Precio al CONTADO']) * displayRate) * 100) / 100;
+                const priceArs = priceArsValue.toFixed(2);
                 const row = document.createElement('tr');
 
                 // Determine product status and apply classes/badges
@@ -646,9 +648,11 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('productPricePY').value = pricePy.toFixed(2);
         document.getElementById('productPriceContado').value = priceContado.toFixed(2);
         
-        // Calculate and set ARS price
+        // Calculate and set ARS price using the stored rate if available
+        const displayRate = product.exchange_rate_at_creation || usdToArsRate;
         if (!isNaN(priceContado)) {
-            document.getElementById('productPriceArs').value = (priceContado * usdToArsRate).toFixed(2);
+            const priceArsValue = Math.floor((priceContado * displayRate) * 100) / 100;
+            document.getElementById('productPriceArs').value = priceArsValue.toFixed(2);
         } else {
             document.getElementById('productPriceArs').value = '';
         }
@@ -702,7 +706,8 @@ document.addEventListener('DOMContentLoaded', () => {
         detailsModalTitle.textContent = `Detalles de: ${product.Producto}`;
         const priceContadoUSD = parseFloat(product['Precio al CONTADO']);
         const pricePyUSD = parseFloat(product['Precio PY']);
-        const priceArs = (priceContadoUSD * usdToArsRate).toFixed(2);
+        const displayRate = product.exchange_rate_at_creation || usdToArsRate;
+        const priceArs = (Math.floor((priceContadoUSD * displayRate) * 100) / 100).toFixed(2);
 
         let imagesHtml = '';
         if (product.Imagenes && product.Imagenes.length > 0) {
@@ -794,7 +799,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (product.plan_pago_elegido && selectedPlan) {
             const finalPrice = priceContado * (1 + selectedPlan.interest);
             const installmentValue = finalPrice / selectedPlan.months;
-            const installmentValueArs = installmentValue * exchangeRate;
+            const installmentValueArs = Math.floor((installmentValue * exchangeRate) * 100) / 100;
 
             const pagosRealizados = product.pagos_realizados || [];
             const cuotasPagadasCount = pagosRealizados.length;
@@ -838,6 +843,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const priceContado = parseFloat(product['Precio al CONTADO']);
         if (isNaN(priceContado)) return '<p class="text-danger">El precio del producto no es válido.</p>';
 
+        const displayRate = product.exchange_rate_at_creation || usdToArsRate;
+        const priceContadoArs = Math.floor((priceContado * displayRate) * 100) / 100;
+
         const plans = [
             { months: 3, interest: 0.50, name: 'Plan 3 Cuotas' },
             { months: 6, interest: 1.00, name: 'Plan 6 Cuotas' },
@@ -847,7 +855,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let tableHtml = `
             <h5>Planes de Financiación</h5>
-            <p>Precio Contado: <strong>${priceContado.toFixed(2)} USD / ${(priceContado * usdToArsRate).toFixed(2)} ARS</strong></p>
+            <p>Precio Contado: <strong>${priceContado.toFixed(2)} USD / ${priceContadoArs.toFixed(2)} ARS</strong></p>
             <table class="table table-bordered table-sm">
                 <thead class="table-light">
                     <tr>
@@ -862,8 +870,8 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const plan of plans) {
             const finalPrice = priceContado * (1 + plan.interest);
             const installmentValue = finalPrice / plan.months;
-            const finalPriceArs = finalPrice * usdToArsRate;
-            const installmentValueArs = installmentValue * usdToArsRate;
+            const finalPriceArs = Math.floor((finalPrice * displayRate) * 100) / 100;
+            const installmentValueArs = Math.floor((installmentValue * displayRate) * 100) / 100;
 
             tableHtml += `
                 <tr>
@@ -951,8 +959,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const exchangeRate = product.exchange_rate_at_sale || usdToArsRate;
             const finalPrice = priceContado * (1 + selectedPlan.interest);
             const installmentValue = finalPrice / selectedPlan.months;
-            const installmentValueArs = (installmentValue * exchangeRate).toFixed(2);
-            const finalPriceArs = (finalPrice * exchangeRate).toFixed(2);
+            const installmentValueArs = (Math.floor((installmentValue * exchangeRate) * 100) / 100).toFixed(2);
+            const finalPriceArs = (Math.floor((finalPrice * exchangeRate) * 100) / 100).toFixed(2);
 
             let trackerHtml = `
                 <h5>Seguimiento de Cuotas (${selectedPlan.months} cuotas)</h5>
