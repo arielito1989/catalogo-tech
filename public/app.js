@@ -282,8 +282,8 @@ document.addEventListener('DOMContentLoaded', () => {
             catalogTableBody.innerHTML = '';
             productsToRender.forEach(product => {
                 const displayRate = product.exchange_rate_at_creation || usdToArsRate;
-                const priceArsValue = Math.floor((parseFloat(product['Precio al CONTADO']) * displayRate) * 100) / 100;
-                const priceArs = priceArsValue.toFixed(2);
+                const priceArsValue = Math.floor((parseFloat(product['Precio al CONTADO']) * displayRate));
+                const priceArs = Math.round(priceArsValue);
                 const row = document.createElement('tr');
 
                 // Determine product status and apply classes/badges
@@ -408,7 +408,7 @@ document.addEventListener('DOMContentLoaded', () => {
             preciseContadoUSD = null; 
             const contadoUSD = parseFloat(priceContadoInput.value);
             if (!isNaN(contadoUSD)) {
-                priceArsInput.value = truncate(contadoUSD * usdToArsRate);
+                priceArsInput.value = Math.round(contadoUSD * usdToArsRate);
                 pricePyInput.value = truncate(contadoUSD / 2);
             } else {
                 priceArsInput.value = '';
@@ -436,7 +436,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 preciseContadoUSD = calculatedUsd;
                 // Display the truncated value
                 priceContadoInput.value = truncate(calculatedUsd);
-                priceArsInput.value = truncate(calculatedUsd * usdToArsRate);
+                priceArsInput.value = Math.round(calculatedUsd * usdToArsRate);
             } else {
                 priceContadoInput.value = '';
                 priceArsInput.value = '';
@@ -651,8 +651,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Calculate and set ARS price using the stored rate if available
         const displayRate = product.exchange_rate_at_creation || usdToArsRate;
         if (!isNaN(priceContado)) {
-            const priceArsValue = Math.floor((priceContado * displayRate) * 100) / 100;
-            document.getElementById('productPriceArs').value = priceArsValue.toFixed(2);
+            const priceArsValue = Math.floor((priceContado * displayRate));
+            document.getElementById('productPriceArs').value = Math.round(priceArsValue);
         } else {
             document.getElementById('productPriceArs').value = '';
         }
@@ -707,7 +707,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const priceContadoUSD = parseFloat(product['Precio al CONTADO']);
         const pricePyUSD = parseFloat(product['Precio PY']);
         const displayRate = product.exchange_rate_at_creation || usdToArsRate;
-        const priceArs = (Math.floor((priceContadoUSD * displayRate) * 100) / 100).toFixed(2);
+        const priceArs = Math.round((priceContadoUSD * displayRate));
 
         let imagesHtml = '';
         if (product.Imagenes && product.Imagenes.length > 0) {
@@ -844,7 +844,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isNaN(priceContado)) return '<p class="text-danger">El precio del producto no es válido.</p>';
 
         const displayRate = product.exchange_rate_at_creation || usdToArsRate;
-        const priceContadoArs = Math.floor((priceContado * displayRate) * 100) / 100;
+        const priceContadoArs = Math.round(priceContado * displayRate);
 
         const plans = [
             { months: 3, interest: 0.50, name: 'Plan 3 Cuotas' },
@@ -855,7 +855,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let tableHtml = `
             <h5>Planes de Financiación</h5>
-            <p>Precio Contado: <strong>${priceContado.toFixed(2)} USD / ${priceContadoArs.toFixed(2)} ARS</strong></p>
+            <p>Precio Contado: <strong>${priceContado.toFixed(2)} USD / ${priceContadoArs} ARS</strong></p>
             <table class="table table-bordered table-sm">
                 <thead class="table-light">
                     <tr>
@@ -870,15 +870,15 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const plan of plans) {
             const finalPrice = priceContado * (1 + plan.interest);
             const installmentValue = finalPrice / plan.months;
-            const finalPriceArs = Math.floor((finalPrice * displayRate) * 100) / 100;
-            const installmentValueArs = Math.floor((installmentValue * displayRate) * 100) / 100;
+            const finalPriceArs = Math.round(finalPrice * displayRate);
+            const installmentValueArs = Math.round(installmentValue * displayRate);
 
             tableHtml += `
                 <tr>
                     <td><strong>${plan.name}</strong></td>
                     <td>${(plan.interest * 100).toFixed(0)}%</td>
-                    <td>${installmentValue.toFixed(2)} / ${installmentValueArs.toFixed(2)}</td>
-                    <td>${finalPrice.toFixed(2)} / ${finalPriceArs.toFixed(2)}</td>
+                    <td>${installmentValue.toFixed(2)} / ${installmentValueArs}</td>
+                    <td>${finalPrice.toFixed(2)} / ${finalPriceArs}</td>
                 </tr>`;
         }
 
