@@ -281,7 +281,8 @@ document.addEventListener('DOMContentLoaded', () => {
             noProductsMessage.classList.add('d-none');
             catalogTableBody.innerHTML = '';
             productsToRender.forEach(product => {
-                const priceArs = (parseFloat(product['Precio al CONTADO']) * usdToArsRate).toFixed(2);
+                const displayRate = product.exchange_rate_at_creation || usdToArsRate;
+                const priceArs = (parseFloat(product['Precio al CONTADO']) * displayRate).toFixed(2);
                 const row = document.createElement('tr');
 
                 // Determine product status and apply classes/badges
@@ -494,6 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
             "Precio al CONTADO": preciseContadoUSD !== null ? preciseContadoUSD : (parseFloat(document.getElementById('productPriceContado').value) || 0),
             "Precio PY": parseFloat(document.getElementById('productPricePY').value) || 0,
             // en_venta will be handled by the server on creation
+            exchange_rate_at_creation: usdToArsRate // Add the current exchange rate
         };
 
         const saveProduct = async (imagesArray) => {

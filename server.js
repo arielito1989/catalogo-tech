@@ -34,9 +34,10 @@ const initializeDatabase = async () => {
             { name: 'plan_pago_elegido', type: 'TEXT' },
             { name: 'cuotas_pagadas', type: 'INTEGER NOT NULL DEFAULT 0' },
             { name: 'fecha_inicio_pago', type: 'DATE' },
-            { name: 'valor_cuota_ars', type: 'REAL' }, // Nueva columna para el valor fijo
-            { name: 'pagos_realizados', type: 'TEXT' }, // Nueva columna para el array de pagos realizados
-            { name: 'exchange_rate_at_sale', type: 'REAL' } // Nueva columna para el tipo de cambio al momento de la venta
+            { name: 'valor_cuota_ars', type: 'REAL' },
+            { name: 'pagos_realizados', type: 'TEXT' },
+            { name: 'exchange_rate_at_sale', type: 'REAL' },
+            { name: 'exchange_rate_at_creation', type: 'REAL' } // Tasa de cambio al momento de crear/editar
         ];
 
         for (const col of columns) {
@@ -99,7 +100,8 @@ const mapProductForClient = (row) => {
         fecha_inicio_pago: row.fecha_inicio_pago,
         valor_cuota_ars: row.valor_cuota_ars,
         pagos_realizados: pagosRealizados,
-        exchange_rate_at_sale: row.exchange_rate_at_sale // Incluir el nuevo campo
+        exchange_rate_at_sale: row.exchange_rate_at_sale,
+        exchange_rate_at_creation: row.exchange_rate_at_creation // Incluir el nuevo campo
     };
 };
 
@@ -152,11 +154,9 @@ app.get('/products', async (req, res) => {
 });
 
 app.post('/products', async (req, res) => {
-    const { id, Producto, CATEGORIA, "Precio PY": PrecioPY, "Precio al CONTADO": PrecioContado, Imagenes } = req.body;
-    // Corrected query to use $7 for the boolean value
-    const query = 'INSERT INTO products (id, producto, categoria, "Precio PY", "Precio al CONTADO", imagenes, en_venta) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *';
-    // Added `true` to the values array for the en_venta column
-    const values = [id, Producto, CATEGORIA, PrecioPY, PrecioContado, JSON.stringify(Imagenes || []), true];
+    const { id, Producto, CATEGORIA, "Precio PY": PrecioPY, "Precio al CONTADO": PrecioContado, Imagenes, exchange_rate_at_creation } = req.body;
+    const query = 'INSERT INTO products (id, producto, categoria, "Precio PY", "Precio al CONTADO", imagenes, en_venta, exchange_rate_at_creation) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *';
+    const values = [id, Producto, CATEGORIA, PrecioPY, PrecioContado, JSON.stringify(Imagenes || []), true, exchange_rate_at_creation];
     try {
         const client = await pool.connect();
         const result = await client.query(query, values);
@@ -171,9 +171,9 @@ app.post('/products', async (req, res) => {
 
 app.put('/products/:id', async (req, res) => {
     const { id } = req.params;
-    const { Producto, CATEGORIA, "Precio PY": PrecioPY, "Precio al CONTADO": PrecioContado, Imagenes } = req.body;
-    const query = `UPDATE products SET producto = $1, categoria = $2, "Precio PY" = $3, "Precio al CONTADO" = $4, imagenes = $5 WHERE id = $6 RETURNING *`;
-    const values = [Producto, CATEGORIA, PrecioPY, PrecioContado, JSON.stringify(Imagenes || []), id];
+    const { Producto, CATEGORIA, "Precio PY": PrecioPY, "Precio al CONTADO": PrecioContado, Imagenes, exchange_rate_at_creation } = req.body;
+    const query = `UPDATE products SET producto = $1, categoria = $2, "Precio PY" = $3, "Precio al CONTADO" = $4, imagenes = $5, exchange_rate_at_creation = $6 WHERE id = $7 RETURNING *`;
+    const values = [Producto, CATEGORIA, PrecioPY, PrecioContado, JSON.stringify(Imagenes || []), exchange_rate_at_creation, id];
     try {
         const client = await pool.connect();
         const result = await client.query(query, values);
